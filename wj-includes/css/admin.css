@@ -1,4 +1,4 @@
-/* Musa Café · Panel de administración */
+/* QuéDice! · Panel de administración */
 
 :root {
   /* Paleta institucional (Manual de Identidad Visual, Gobernación de Nariño, 2024):
@@ -44,7 +44,7 @@ a { color: var(--panel-primario); }
 }
 
 .barra-marca { display: flex; align-items: center; gap: 12px; }
-.barra-marca img { width: 78px; height: auto; }
+.barra-marca img { height: 34px; width: auto; }
 .barra-marca strong { display: block; font-size: 16px; }
 .barra-marca span { font-size: 12px; opacity: .85; }
 
@@ -306,7 +306,7 @@ input:focus, select:focus, textarea:focus {
 }
 
 .acceso-marca { margin: -30px -28px 18px; padding: 18px; border-radius: 18px 18px 0 0; background: var(--panel-primario); border-top: 4px solid var(--panel-acento); }
-.tarjeta-acceso img { width: 130px; display: block; margin: 0 auto; }
+.tarjeta-acceso img { width: 210px; max-width: 100%; display: block; margin: 0 auto; }
 .tarjeta-acceso small.tenue { margin-top: 4px; }
 .opacidad { margin-top: 14px; }
 .opacidad input[type="range"] { width: min(100%, 360px); display: block; margin-top: 6px; accent-color: var(--panel-primario); }

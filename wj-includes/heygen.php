@@ -1,6 +1,6 @@
 <?php
 /**
- * Musa Café · Cliente de HeyGen LiveAvatar
+ * QuéDice! · Cliente de HeyGen LiveAvatar
  * -------------------------------------------------------------
  * HeyGen reemplaza su «Interactive Avatar API» por la plataforma LiveAvatar (api.liveavatar.com).
  * Referencia verificada: https://docs.liveavatar.com (openapi.json, sesiones y eventos del modo FULL).
@@ -146,10 +146,10 @@ function musa_heygen_prompt($ajustes = null) {
 /** Datos del contexto listos para enviar a la API. */
 function musa_heygen_contexto_cuerpo($ajustes = null) {
     if ($ajustes === null) { $ajustes = musa_ajustes(); }
-    $nombre = trim((string) musa_dato($ajustes, 'tema.titulo', 'Musa Café'));
+    $nombre = trim((string) musa_dato($ajustes, 'tema.titulo', 'QuéDice!'));
     if (function_exists('mb_substr')) { $nombre = mb_substr($nombre, 0, 64, 'UTF-8'); }
     $cuerpo = array(
-        'name'         => $nombre !== '' ? $nombre : 'Musa Café',
+        'name'         => $nombre !== '' ? $nombre : 'QuéDice!',
         'prompt'       => musa_heygen_prompt($ajustes),
         'opening_text' => trim((string) musa_dato($ajustes, 'tema.saludo', '¡Hola!')),
     );

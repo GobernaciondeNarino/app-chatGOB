@@ -1,6 +1,6 @@
 <?php
 /**
- * Musa Café · Configuración y verificación de la API de HeyGen LiveAvatar
+ * QuéDice! · Configuración y verificación de la API de HeyGen LiveAvatar
  */
 require_once __DIR__ . '/comun.php';
 

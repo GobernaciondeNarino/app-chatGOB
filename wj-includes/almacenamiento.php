@@ -1,6 +1,6 @@
 <?php
 /**
- * Musa Café · Almacenamiento de conversaciones en JSON
+ * QuéDice! · Almacenamiento de conversaciones en JSON
  * Archivo: wj-content/datos/conversaciones.json.php
  *
  * Cada conversación guarda los datos de la persona (si el formulario de inicio

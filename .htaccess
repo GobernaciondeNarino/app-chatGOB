@@ -1,4 +1,4 @@
-# Musa Café · Gobernación de Nariño
+# QuéDice! · Gobernación de Nariño
 # Reglas para Apache (Plesk usa Apache detrás de nginx por defecto).
 # Si el servidor solo usa nginx, estas reglas no se aplican, pero los archivos de datos
 # siguen protegidos: empiezan con una línea PHP que responde 403.

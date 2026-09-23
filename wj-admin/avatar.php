@@ -1,6 +1,6 @@
 <?php
 /**
- * Musa Café · Avatar y tema de conversación
+ * QuéDice! · Avatar y tema de conversación
  * Configura el avatar de HeyGen (ID, voz, idioma, calidad) y de qué habla:
  * tema, personalidad, saludo, conocimiento, reglas y preguntas sugeridas.
  * Al guardar, el contexto se sincroniza con LiveAvatar.

@@ -1,6 +1,6 @@
 <?php
 /**
- * Musa Café · Inicia una conversación con el avatar
+ * QuéDice! · Inicia una conversación con el avatar
  * POST JSON: { token, nombre, correo, telefono, ciudad, autorizacion, sitio_web }
  *
  * Valida el formulario de inicio (si está activo), crea el registro de la conversación,

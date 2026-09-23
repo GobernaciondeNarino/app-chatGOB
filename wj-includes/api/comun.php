@@ -1,6 +1,6 @@
 <?php
 /**
- * Musa Café · Base común de la API pública
+ * QuéDice! · Base común de la API pública
  * Valida método, cuerpo JSON y token CSRF, y libera la sesión
  * antes de hablar con LiveAvatar para no bloquear otras peticiones.
  */

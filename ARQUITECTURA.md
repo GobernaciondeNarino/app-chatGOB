@@ -1,4 +1,4 @@
-# Musa Café · Documento técnico (versión 2.1.0)
+# QuéDice! · Documento técnico (versión 2.2.0)
 
 Complemento del `README.md` para quien vaya a mantener o ampliar el sistema.
 
@@ -226,4 +226,4 @@ el resumen por correo desde el panel.
 
 ---
 
-Gobernación de Nariño · Musa Café · versión 2.1.0
+Gobernación de Nariño · QuéDice! · versión 2.2.0

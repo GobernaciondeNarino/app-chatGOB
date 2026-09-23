@@ -1,6 +1,6 @@
 <?php
 /**
- * Musa Café · Funciones de apoyo
+ * QuéDice! · Funciones de apoyo
  */
 if (!defined('MUSA_ARRANQUE')) { http_response_code(403); exit('Acceso directo no permitido.'); }
 

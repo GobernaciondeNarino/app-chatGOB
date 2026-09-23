@@ -1,6 +1,6 @@
 <?php
 /**
- * Musa Café · Acceso al panel
+ * QuéDice! · Acceso al panel
  * - Instalación recién descargada (sin cuenta): pide el código de instalación de un solo uso
  *   (wj-content/config/codigo-instalacion.php, solo legible desde el servidor) y crea la cuenta.
  * - Con cuenta: valida contra wj-content/config/.htpasswd (el mismo formato de Apache).
@@ -83,7 +83,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
     }
 }
 
-$marca = (string) musa_dato(musa_ajustes(), 'marca.nombre', 'Musa Café');
+$marca = (string) musa_dato(musa_ajustes(), 'marca.nombre', 'QuéDice!');
 ?><!DOCTYPE html>
 <html lang="es">
 <head>
@@ -91,13 +91,13 @@ $marca = (string) musa_dato(musa_ajustes(), 'marca.nombre', 'Musa Café');
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex, nofollow">
 <title><?php echo $instalar ? 'Configuración inicial' : 'Acceso'; ?> · Panel <?php echo musa_e($marca); ?></title>
-<link rel="icon" href="<?php echo musa_e(musa_url('wj-includes/images/optimizadas/logo_musacafe.png')); ?>">
+<link rel="icon" href="<?php echo musa_e(musa_url('wj-includes/images/quedice/icono-quedice.png')); ?>">
 <link rel="stylesheet" href="<?php echo musa_e(musa_recurso('wj-includes/css/admin.css')); ?>">
 </head>
 <body class="pantalla-acceso">
 <form class="tarjeta-acceso" method="post" action="acceso.php">
   <div class="acceso-marca">
-    <img src="<?php echo musa_e(musa_url('wj-includes/images/optimizadas/logo_musacafe.png')); ?>" alt="">
+    <img src="<?php echo musa_e(musa_url('wj-includes/images/quedice/logo-quedice.png')); ?>" alt="">
   </div>
   <?php if ($danado) : ?>
     <h1>Credenciales dañadas</h1>

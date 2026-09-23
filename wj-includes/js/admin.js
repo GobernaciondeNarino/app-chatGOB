@@ -1,4 +1,4 @@
-/* Musa Café · Panel de administración */
+/* QuéDice! · Panel de administración */
 
 (function () {
   'use strict';
@@ -116,7 +116,7 @@
       acento_secundario: '#4FC3F7', burbuja_persona: '#FFFFFF', texto_persona: '#003366',
       exito: '#10A13B', error: '#FFB3BC', institucional: '#003366'
     },
-    musa: {
+    cafe: {
       fondo: '#AE1D2C', fondo_profundo: '#7E0E1C', tarjeta: '#9F1427', tarjeta_borde: '#C3364A',
       texto: '#F7EFE0', texto_suave: '#EBC9CE', acento: '#F2B705', texto_sobre_acento: '#3A0A10',
       acento_secundario: '#12A5C4', burbuja_persona: '#F6EDD9', texto_persona: '#5A0B16',

@@ -1,4 +1,4 @@
-/* Musa Café · Avatar conversacional
+/* QuéDice! · Avatar conversacional
    Toda la experiencia vive en #app: 100 % de ancho, 100vh de alto y sin desplazamiento.
    Dos capas (guía de Apple, traducida a web):
    - Contenido: fondo, escena three.js y el avatar al centro.
@@ -293,11 +293,11 @@ body.estado-hablando .ondas i { animation: onda .7s ease-in-out infinite; }
 .control .tachado { display: none; }
 .control[aria-pressed="false"] .tachado { display: inline; }
 .control[aria-pressed="false"] { border-color: var(--musa-error); }
-#microfono[aria-pressed="true"] { background: var(--musa-acento-secundario); border-color: transparent; color: #fff; }
+#microfono[aria-pressed="true"] { background: var(--musa-acento-secundario); border-color: transparent; color: var(--musa-sobre-acento); }
 #microfono[data-ptt] { width: auto; padding: 0 16px; border-radius: 999px; gap: 8px; font-weight: 700; font-size: 14px; touch-action: none; user-select: none; }
 #microfono[data-ptt][aria-pressed="false"] { background: rgba(255, 255, 255, .1); border-color: rgba(255, 255, 255, .24); }
 #microfono[data-ptt] .tachado { display: none; }
-#microfono.pulsado { background: var(--musa-acento-secundario); color: #fff; }
+#microfono.pulsado { background: var(--musa-acento-secundario); color: var(--musa-sobre-acento); }
 .control-peligro { background: #C8102E; border-color: transparent; color: #fff; }
 .control-peligro:hover { background: #A30D25; }
 

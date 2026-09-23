@@ -1,6 +1,6 @@
 <?php
 /**
- * Musa Café · Apariencia, textos y formulario de inicio
+ * QuéDice! · Apariencia, textos y formulario de inicio
  * Todo lo que se ve en la interfaz pública se configura aquí.
  */
 require_once __DIR__ . '/comun.php';
@@ -41,7 +41,7 @@ function musa_subir_imagen($campo, $indice = null) {
 /** Imágenes disponibles para elegir en los selectores. */
 function musa_imagenes_disponibles() {
     $lista = array();
-    foreach (array('wj-includes/images', 'wj-includes/images/optimizadas', 'wj-includes/images/avatar', 'wj-content/subidas') as $carpeta) {
+    foreach (array('wj-includes/images', 'wj-includes/images/quedice', 'wj-includes/images/optimizadas', 'wj-includes/images/avatar', 'wj-content/subidas') as $carpeta) {
         $ruta = MUSA_RAIZ . '/' . $carpeta;
         if (!is_dir($ruta)) { continue; }
         foreach ((array) scandir($ruta) as $archivo) {
@@ -189,8 +189,8 @@ musa_panel_mensaje();
 <section class="bloque-panel">
   <h2>Colores</h2>
   <p class="nota">Paletas rápidas (luego pulsa «Guardar cambios»):
-    <button type="button" class="boton-linea pequeno" data-paleta="institucional">Institucional Gobernación de Nariño</button>
-    <button type="button" class="boton-linea pequeno" data-paleta="musa">Musa Café (predeterminada)</button></p>
+    <button type="button" class="boton-linea pequeno" data-paleta="institucional">Institucional Gobernación de Nariño (predeterminada)</button>
+    <button type="button" class="boton-linea pequeno" data-paleta="cafe">Café (rojo y dorado)</button></p>
   <div class="rejilla colores">
     <?php foreach ($etiquetasColor as $clave => $etiqueta) :
         $valor = musa_color(musa_dato($colores, $clave, ''), '#000000'); ?>

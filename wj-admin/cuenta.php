@@ -1,6 +1,6 @@
 <?php
 /**
- * Musa Café · Usuario y contraseña del panel (.htpasswd)
+ * QuéDice! · Usuario y contraseña del panel (.htpasswd)
  */
 require_once __DIR__ . '/comun.php';
 
@@ -71,7 +71,7 @@ musa_panel_mensaje();
     para este servidor:
   </p>
   <pre class="bloque codigo-copiar">AuthType Basic
-AuthName "Panel Musa Cafe"
+AuthName "Panel QueDice"
 AuthUserFile <?php echo musa_e(MUSA_HTPASSWD); ?>
 Require valid-user</pre>
   <p class="nota">Si al activarlo el sitio muestra un error 500, la ruta no es válida para este servidor: vuelve a comentar las líneas y usa solo el acceso del panel.</p>

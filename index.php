@@ -1,6 +1,6 @@
 <?php
 /**
- * Musa Café · Interfaz pública del avatar conversacional
+ * QuéDice! · Interfaz pública del avatar conversacional
  * Gobernación de Nariño
  *
  * Toda la experiencia vive en un solo contenedor (#app) de 100 % de ancho y 100vh de alto,
@@ -30,12 +30,12 @@ $c = function ($clave, $respaldo) use ($colores) {
     return musa_color(musa_dato($colores, $clave, ''), $respaldo);
 };
 
-$logo        = $imagen(musa_dato($marca, 'logo', ''), 'wj-includes/images/optimizadas/logo_musacafe.png');
+$logo        = $imagen(musa_dato($marca, 'logo', ''), 'wj-includes/images/quedice/logo-quedice.png');
 $rama        = $imagen(musa_dato($marca, 'fondo', ''));
 $barra       = $imagen(musa_dato($marca, 'barra', ''));
 $fondo       = $imagen(musa_dato($marca, 'imagen_fondo', ''));
 $logoEntidad = $imagen(musa_dato($marca, 'logo_entidad', ''));
-$favicon     = $imagen(musa_dato($marca, 'favicon', ''), 'wj-includes/images/optimizadas/logo_musacafe.png');
+$favicon     = $imagen(musa_dato($marca, 'favicon', ''), 'wj-includes/images/quedice/icono-quedice.png');
 $retrato     = $imagen(musa_dato($avatar, 'retrato', ''), 'wj-includes/images/avatar/avatar-cafe.webp');
 
 $formularioActivo = !empty($form['activo']);
@@ -66,11 +66,11 @@ $configJs = array(
         'pulsarHablar' => musa_dato($avatar, 'interactividad', 'CONVERSATIONAL') === 'PUSH_TO_TALK',
     ),
     'colores'          => array(
-        'fondo'    => $c('fondo', '#AE1D2C'),
-        'profundo' => $c('fondo_profundo', '#7E0E1C'),
-        'texto'    => $c('texto', '#F7EFE0'),
-        'acento'   => $c('acento', '#F2B705'),
-        'acento2'  => $c('acento_secundario', '#12A5C4'),
+        'fondo'    => $c('fondo', '#0B7A2E'),
+        'profundo' => $c('fondo_profundo', '#003366'),
+        'texto'    => $c('texto', '#FFFFFF'),
+        'acento'   => $c('acento', '#FFD500'),
+        'acento2'  => $c('acento_secundario', '#4FC3F7'),
     ),
     'textos'           => array(
         'conectando' => $t('conectando', 'Preparando al anfitrión…'),
@@ -88,21 +88,21 @@ $configJs = array(
 );
 
 $css = array(
-    '--musa-fondo'             => $c('fondo', '#AE1D2C'),
-    '--musa-fondo-profundo'    => $c('fondo_profundo', '#7E0E1C'),
-    '--musa-fondo-rgb'         => musa_color_rgb($c('fondo_profundo', '#7E0E1C'), '126, 14, 28'),
-    '--musa-tarjeta'           => $c('tarjeta', '#9F1427'),
-    '--musa-tarjeta-borde'     => $c('tarjeta_borde', '#C3364A'),
-    '--musa-texto'             => $c('texto', '#F7EFE0'),
-    '--musa-texto-rgb'         => musa_color_rgb($c('texto', '#F7EFE0'), '247, 239, 224'),
-    '--musa-texto-suave'       => $c('texto_suave', '#EBC9CE'),
-    '--musa-acento'            => $c('acento', '#F2B705'),
-    '--musa-acento-rgb'        => musa_color_rgb($c('acento', '#F2B705'), '242, 183, 5'),
-    '--musa-sobre-acento'      => $c('texto_sobre_acento', '#3A0A10'),
-    '--musa-acento-secundario' => $c('acento_secundario', '#12A5C4'),
-    '--musa-burbuja-persona'   => $c('burbuja_persona', '#F6EDD9'),
-    '--musa-texto-persona'     => $c('texto_persona', '#5A0B16'),
-    '--musa-exito'             => $c('exito', '#2E9E6B'),
+    '--musa-fondo'             => $c('fondo', '#0B7A2E'),
+    '--musa-fondo-profundo'    => $c('fondo_profundo', '#003366'),
+    '--musa-fondo-rgb'         => musa_color_rgb($c('fondo_profundo', '#003366'), '0, 51, 102'),
+    '--musa-tarjeta'           => $c('tarjeta', '#0A5C2A'),
+    '--musa-tarjeta-borde'     => $c('tarjeta_borde', '#10A13B'),
+    '--musa-texto'             => $c('texto', '#FFFFFF'),
+    '--musa-texto-rgb'         => musa_color_rgb($c('texto', '#FFFFFF'), '255, 255, 255'),
+    '--musa-texto-suave'       => $c('texto_suave', '#EAF5EC'),
+    '--musa-acento'            => $c('acento', '#FFD500'),
+    '--musa-acento-rgb'        => musa_color_rgb($c('acento', '#FFD500'), '255, 213, 0'),
+    '--musa-sobre-acento'      => $c('texto_sobre_acento', '#1A1A1A'),
+    '--musa-acento-secundario' => $c('acento_secundario', '#4FC3F7'),
+    '--musa-burbuja-persona'   => $c('burbuja_persona', '#FFFFFF'),
+    '--musa-texto-persona'     => $c('texto_persona', '#003366'),
+    '--musa-exito'             => $c('exito', '#10A13B'),
     '--musa-error'             => $c('error', '#FFB3BC'),
     '--musa-institucional'     => $c('institucional', '#003366'),
     '--musa-opacidad-fondo'    => (string) $opacidadFondo,
@@ -115,8 +115,8 @@ $css = array(
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="description" content="<?php echo musa_e(musa_dato($marca, 'descripcion', '')); ?>">
-<meta name="theme-color" content="<?php echo musa_e($c('fondo_profundo', '#7E0E1C')); ?>">
-<title><?php echo musa_e(musa_dato($marca, 'titulo_sitio', 'Musa Café')); ?></title>
+<meta name="theme-color" content="<?php echo musa_e($c('fondo_profundo', '#003366')); ?>">
+<title><?php echo musa_e(musa_dato($marca, 'titulo_sitio', 'QuéDice!')); ?></title>
 <?php if ($favicon !== '') : ?><link rel="icon" href="<?php echo musa_e($favicon); ?>"><?php endif; ?>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -147,9 +147,9 @@ $css = array(
 
   <header class="cabecera">
     <?php if ($logo !== '') : ?>
-      <img class="logo" src="<?php echo musa_e($logo); ?>" alt="<?php echo musa_e(musa_dato($marca, 'nombre', 'Musa Café')); ?>">
+      <img class="logo" src="<?php echo musa_e($logo); ?>" alt="<?php echo musa_e(musa_dato($marca, 'nombre', 'QuéDice!')); ?>">
     <?php else : ?>
-      <strong class="logo logo-texto"><?php echo musa_e(musa_dato($marca, 'nombre', 'Musa Café')); ?></strong>
+      <strong class="logo logo-texto"><?php echo musa_e(musa_dato($marca, 'nombre', 'QuéDice!')); ?></strong>
     <?php endif; ?>
     <div class="titulos">
       <h1><?php echo musa_e($t('titulo', 'Conversa sobre café')); ?></h1>

@@ -1,6 +1,6 @@
 <?php
 /**
- * Musa Café · Seguridad
+ * QuéDice! · Seguridad
  * Sesiones, CSRF, control de intentos y autenticación del panel
  * contra el archivo wj-content/config/.htpasswd (formato de Apache, sirve también para .htaccess).
  *
@@ -18,7 +18,10 @@ define('MUSA_CREDENCIALES_BLOQUEO', MUSA_DIR_CONFIG . '/credenciales.lock');
 function musa_htpasswd_migrar() {
     if (file_exists(MUSA_HTPASSWD) || !file_exists(MUSA_HTPASSWD_ANTERIOR)) { return; }
     $contenido = @file_get_contents(MUSA_HTPASSWD_ANTERIOR);
-    if ($contenido !== false && trim($contenido) !== '' && @file_put_contents(MUSA_HTPASSWD, $contenido, LOCK_EX) !== false) {
+    // Solo se trae si tiene al menos una línea usuario:hash; un archivo vacío o de ejemplo no
+    // debe convertirse en las credenciales vigentes (dejaría el panel bloqueado).
+    if ($contenido === false || !preg_match('/^[^#\s:][^:]*:\S+/m', $contenido)) { return; }
+    if (@file_put_contents(MUSA_HTPASSWD, $contenido, LOCK_EX) !== false) {
         @chmod(MUSA_HTPASSWD, 0640);
         musa_log('Credenciales del panel movidas de wj-admin/.htpasswd a wj-content/config/.htpasswd');
     }
@@ -85,7 +88,7 @@ function musa_htpasswd_crear_primera($usuario, $clave) {
     } else {
         $archivo = @fopen(MUSA_HTPASSWD, 'x');
         if ($archivo !== false) {
-            $contenido = "# Musa Café · credenciales del panel wj-admin\n# Generado el " . date('Y-m-d H:i:s') . " · cifrado bcrypt\n" . $usuario . ':' . $hash . "\n";
+            $contenido = "# QuéDice! · credenciales del panel wj-admin\n# Generado el " . date('Y-m-d H:i:s') . " · cifrado bcrypt\n" . $usuario . ':' . $hash . "\n";
             $ok = @fwrite($archivo, $contenido) === strlen($contenido);
             @fclose($archivo);
             if ($ok) {
@@ -203,7 +206,7 @@ function musa_htpasswd_guardar($usuario, $clave) {
     $hash = password_hash($clave, PASSWORD_BCRYPT);
     if ($hash === false) { return false; }
     if (!is_dir(dirname(MUSA_HTPASSWD))) { @mkdir(dirname(MUSA_HTPASSWD), 0775, true); }
-    $contenido = "# Musa Café · credenciales del panel wj-admin\n";
+    $contenido = "# QuéDice! · credenciales del panel wj-admin\n";
     $contenido .= "# Generado el " . date('Y-m-d H:i:s') . " · cifrado bcrypt\n";
     $contenido .= $usuario . ':' . $hash . "\n";
     $bloqueo = @fopen(MUSA_CREDENCIALES_BLOQUEO, 'c');

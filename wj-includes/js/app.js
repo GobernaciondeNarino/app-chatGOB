@@ -1,4 +1,4 @@
-/* Musa Café · Avatar conversacional (HeyGen LiveAvatar + three.js)
+/* QuéDice! · Avatar conversacional (HeyGen LiveAvatar + three.js)
  *
  * Flujo:
  *  1. «Iniciar conversación» → formulario de inicio (si está activo en wj-admin).

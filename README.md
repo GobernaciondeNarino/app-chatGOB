@@ -1,4 +1,4 @@
-# Musa Café · Avatar conversacional
+# QuéDice! · Avatar conversacional
 
 Aplicación web de la **Gobernación de Nariño**. Un avatar de **HeyGen** aparece en el centro de
 la pantalla y conversa por voz con las personas sobre el tema configurado (por defecto, **el café
@@ -139,8 +139,8 @@ HeyGen no publica en esas páginas una fecha exacta de cierre de la API anterior
   (`wj-content/subidas`, máximo 5 MB).
 - **Colores:** catorce colores con selector visual y dos paletas en un clic:
   **Institucional Gobernación de Nariño** (verde #10A13B, amarillo #FFD500, azul #003366 del
-  Manual de Identidad Visual 2024, con los verdes ajustados para cumplir contraste AA) y
-  **Musa Café** (predeterminada, pensada para el logo de letras crema).
+  Manual de Identidad Visual 2024, con los verdes ajustados para cumplir contraste AA;
+  predeterminada) y **Café** (rojo y dorado).
 - **Formulario de inicio:** activarlo o no («saber con quién se habla») y qué campos pedir
   (correo, municipio, teléfono) y cuáles son obligatorios. El municipio puede elegirse de la
   **lista de los 64 municipios de Nariño** (con «Otro municipio» opcional) o escribirse libre.
@@ -204,7 +204,7 @@ Para que además el navegador pida usuario y contraseña, quita el comentario de
 
 ```apache
 AuthType Basic
-AuthName "Panel Musa Cafe"
+AuthName "Panel QueDice"
 AuthUserFile /var/www/vhosts/TU-DOMINIO/httpdocs/wj-content/config/.htpasswd
 Require valid-user
 ```
@@ -286,4 +286,4 @@ movimiento y transparencia reducidos). Ninguna es necesaria en el servidor.
 
 ---
 
-Gobernación de Nariño · Musa Café · versión 2.1.0
+Gobernación de Nariño · QuéDice! · versión 2.2.0

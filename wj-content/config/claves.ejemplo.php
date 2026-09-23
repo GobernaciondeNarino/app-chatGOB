@@ -1,6 +1,6 @@
 <?php
 /**
- * Musa Café · Claves de API (opcional)
+ * QuéDice! · Claves de API (opcional)
  *
  * Copia este archivo como  wj-content/config/claves.php  y escribe tu clave.
  * Se usa la primera vez que arranca el sitio para dejar la API lista sin

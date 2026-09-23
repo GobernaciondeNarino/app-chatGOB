@@ -1,6 +1,6 @@
 <?php
 /**
- * Musa Café · Acciones sobre las conversaciones
+ * QuéDice! · Acciones sobre las conversaciones
  * Marcar casillas (AJAX), enviar el resumen por correo, notas, cerrar,
  * recuperar la transcripción de LiveAvatar, eliminar y exportar.
  */
