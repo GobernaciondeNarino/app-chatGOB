@@ -69,10 +69,10 @@ function musa_preparar_carpetas() {
             @file_put_contents($htaccess, "Require all denied\n<IfModule !mod_authz_core.c>\nOrder allow,deny\nDeny from all\n</IfModule>\n");
         }
     }
-    // Subidas: solo imágenes con nombre generado por el panel; nada se ejecuta.
+    // Subidas: solo imágenes y videos con nombre generado por el panel; nada se ejecuta.
     $subidas = MUSA_DIR_SUBIDAS . '/.htaccess';
     if (is_dir(MUSA_DIR_SUBIDAS) && !file_exists($subidas)) {
-        @file_put_contents($subidas, "Options -Indexes\n<IfModule mod_authz_core.c>\nRequire all denied\n<FilesMatch \"(?i)^[a-z0-9-]+\\.(png|jpe?g|gif|webp)$\">\nRequire all granted\n</FilesMatch>\n</IfModule>\n");
+        @file_put_contents($subidas, "Options -Indexes\n<IfModule mod_authz_core.c>\nRequire all denied\n<FilesMatch \"(?i)^[a-z0-9-]+\\.(png|jpe?g|gif|webp|mp4|webm)$\">\nRequire all granted\n</FilesMatch>\n</IfModule>\n");
     }
 }
 

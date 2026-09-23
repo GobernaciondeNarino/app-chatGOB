@@ -1,10 +1,20 @@
 # QuéDice! · Avatar conversacional
 
-Aplicación web de la **Gobernación de Nariño**. Un avatar de **HeyGen** aparece en el centro de
-la pantalla y conversa por voz con las personas sobre el tema configurado (por defecto, **el café
-de Nariño**). Debajo, un cuadro transcribe en tiempo real las preguntas y lo que el avatar
-responde. Todo queda guardado en un archivo JSON y se consulta desde el panel **wj-admin**, con
-las casillas **Creado SÍ/NO** y **Enviado SÍ/NO**.
+Aplicación web de la **Gobernación de Nariño**. Un avatar aparece en el centro de la pantalla y
+conversa por voz con las personas sobre el tema configurado (por defecto, **el café de Nariño**).
+Debajo, un cuadro transcribe las preguntas y lo que el avatar responde. Todo queda guardado en un
+archivo JSON y se consulta desde el panel **wj-admin**, con las casillas **Creado SÍ/NO** y
+**Enviado SÍ/NO**.
+
+El avatar funciona con uno de dos **motores**, que se eligen en el panel (*Motor y APIs*):
+
+- **Económico (predeterminado):** el personaje es un video en bucle que cambia a un video
+  «hablando» mientras suena la voz; las respuestas las escribe una IA de texto (Google Gemini,
+  Hugging Face u otra compatible con OpenAI) y las dice **ElevenLabs**, **Gemini TTS** o la voz del
+  navegador. Cuesta céntimos por conversación.
+- **Avatar en vivo (HeyGen LiveAvatar):** video en tiempo real con los labios sincronizados. Es
+  el más realista y el más costoso (≈ USD 0,20-0,25 por minuto de sesión); queda listo para
+  activarlo cuando haya recursos.
 
 Todo lo que se ve y se dice se configura desde el panel, sin tocar código: avatar, voz, tema,
 personalidad, conocimiento, saludo, preguntas sugeridas, colores, imágenes, logos, textos y el
@@ -16,17 +26,72 @@ formulario de inicio.
 
 | Parte | Descripción |
 |---|---|
-| **Interfaz pública** (`index.php`) | Un solo contenedor `div#app` de 100 % de ancho y 100vh de alto, **sin scroll**. Avatar en video en el centro, escena 3D con **three.js** (granos de café, vapor y un aura que reacciona a la voz del avatar) y abajo el panel con la transcripción en vivo, preguntas escritas y sugeridas, micrófono, interrumpir y terminar. Botón de accesibilidad (texto grande y alto contraste). |
+| **Interfaz pública** (`index.php`) | Un solo contenedor `div#app` de 100 % de ancho y 100vh de alto, **sin scroll**. Avatar en video en el centro (videos en bucle o LiveAvatar), escena 3D con **three.js** (granos de café, vapor y un aura que reacciona a la voz del avatar) y abajo el panel con la transcripción en vivo, preguntas escritas y sugeridas, micrófono, interrumpir y terminar. Botón de accesibilidad (texto grande y alto contraste). |
 | **Formulario de inicio** | Opcional: nombre, correo, municipio (lista de los 64 municipios de Nariño o texto libre), teléfono y autorización de datos (Ley 1581). Se activa o desactiva y se eligen sus campos desde el panel. |
-| **Panel** (`wj-admin/`) | Conversaciones con todas las preguntas y respuestas, casillas **Creado** y **Enviado**, exportación CSV/JSON, avatar y tema, API de HeyGen con verificación, apariencia, correo y credenciales. |
-| **Núcleo** (`wj-includes/`) | Configuración, almacenamiento JSON, seguridad, correo, cliente de HeyGen LiveAvatar y la API pública. |
+| **Panel** (`wj-admin/`) | Conversaciones con todas las preguntas y respuestas, casillas **Creado** y **Enviado**, exportación CSV/JSON, avatar y tema, **motor y APIs con verificación de cada proveedor**, HeyGen LiveAvatar, apariencia, correo y credenciales. |
+| **Núcleo** (`wj-includes/`) | Configuración, almacenamiento JSON, seguridad, correo, motor económico (IA, voz y escucha), cliente de HeyGen LiveAvatar y la API pública. |
 | **Contenido** (`wj-content/`) | Ajustes, conversaciones, imágenes subidas y bitácoras. Es la única carpeta que necesita permisos de escritura. |
 
 Solo existen tres carpetas en la raíz del proyecto: `wj-admin`, `wj-includes` y `wj-content`.
 
 ---
 
-## 2. HeyGen LiveAvatar: lo que debes saber
+## 2. Motor económico (predeterminado)
+
+Nace porque el avatar en vivo de LiveAvatar cobra **2 créditos por cada minuto de sesión**, también
+mientras escucha (≈ USD 0,20-0,25 por minuto). El motor económico separa las piezas y solo paga lo
+que usa:
+
+| Pieza | Opciones | Costo (septiembre de 2026) |
+|---|---|---|
+| **Avatar** | Dos videos en bucle del mismo personaje: en reposo y hablando (incluidos, generados a partir del retrato). El de «hablando» aparece con un fundido solo mientras suena la voz. Se pueden subir otros en *Motor y APIs*. | Sin costo por uso |
+| **IA de texto** (escribe la respuesta con el tema del panel) | **Google Gemini** (predeterminado: `gemini-3.1-flash-lite`), **Hugging Face** Inference Providers (`router.huggingface.co/v1`) u otra API compatible con OpenAI (OpenAI, Groq, OpenRouter, Ollama local). | Gemini tiene nivel gratuito; de pago, Flash-Lite ≈ USD 0,25 / 1,50 por millón de tokens de entrada / salida → ≈ USD 0,0007 por respuesta |
+| **Voz** | **ElevenLabs** (Flash v2.5, Turbo v2.5, Multilingual v2 o v3), **Gemini TTS** (`gemini-3.8-flash-lite-tts` o `gemini-3.8-flash-tts`, 30 voces) o **la voz del navegador**. | ElevenLabs Flash/Turbo USD 0,05 y Multilingual/v3 USD 0,10 por 1 000 caracteres (≈ USD 0,018 y 0,035 por respuesta de 60 palabras). Gemini TTS: nivel gratuito; de pago ≈ USD 0,003 por respuesta. Navegador: gratis. |
+| **Escucha** (voz a texto) | Reconocimiento del **navegador** (Chrome, Edge, Safari) o **ElevenLabs Scribe** v2 (igual en todos los navegadores; es el respaldo automático en Firefox si hay clave). | Navegador: gratis. Scribe: USD 0,22 por hora de audio |
+
+**Una conversación de 10 preguntas** cuesta ≈ USD 0,01 con Gemini y la voz del navegador,
+≈ USD 0,04 con Gemini TTS y ≈ USD 0,20 con ElevenLabs Flash, frente a ≈ USD 2,00-2,50 de 10 minutos
+de LiveAvatar. El saludo y las respuestas a las **preguntas sugeridas** se guardan en caché: la
+segunda vez no cuestan nada.
+
+**Puesta en marcha (5 minutos):**
+1. Crea una clave de Gemini en [aistudio.google.com/apikey](https://aistudio.google.com/apikey)
+   (o un token de Hugging Face con permiso *Make calls to Inference Providers*).
+2. Crea una clave de ElevenLabs en *elevenlabs.io → API Keys* con permisos de *Text to Speech*,
+   *Speech to Text*, *Voices* (lectura) y *User* (lectura). Si prefieres no usar ElevenLabs, elige
+   Gemini TTS o la voz del navegador.
+3. En **wj-admin → Motor y APIs** pega las claves, pulsa **Guardar** y después **Verificar todo**.
+4. En la misma página, **Ver voces de la cuenta** → **Usar esta voz** (para una voz latinoamericana,
+   agrégala antes a *My Voices* desde la biblioteca de ElevenLabs) y **Probar voz**.
+
+**Qué hace el servidor en cada pregunta:** reserva el turno (máximo de preguntas por
+conversación, una cada 2 s y un tope global de respuestas por hora), envía a la IA el tema del
+panel y los últimos turnos, limpia la respuesta para leerla en voz alta (sin markdown, enlaces ni
+emojis, y con el largo configurado), genera el audio, guarda la pregunta y la respuesta como
+mensajes verificados y devuelve texto y audio al navegador. Si la voz del servidor falla (sin
+saldo, sin conexión), el navegador lee la respuesta con su propia voz.
+
+> **Privacidad:** en el nivel gratuito de Gemini, Google puede usar lo que se envía para mejorar
+> sus productos. Las preguntas de los visitantes pueden contener datos personales: para uso
+> institucional se recomienda activar la facturación de Gemini (nivel de pago) o usar un proveedor
+> con condiciones de privacidad acordadas.
+
+**¿Y D-ID?** Se evaluó en septiembre de 2026 ([docs.d-id.com](https://docs.d-id.com/reference/get-started),
+[precios de la API](https://www.d-id.com/pricing/api/)). Ofrece avatares en tiempo real a partir de
+una foto (WebRTC) y permite enviar el texto que el avatar debe decir (`speak`), así que se podría
+usar con la misma IA de texto. Cobra por el tiempo que **habla** el avatar (0,5 créditos por cada
+15 s): el plan de API *Launch* cuesta USD 50 al mes por 90 minutos de video en tiempo real
+(≈ USD 0,55 por minuto hablado); *Build* (USD 18) es de licencia personal y con marca de agua, y
+*Scale* va de USD 198 a 297. Una conversación de 10 preguntas en la que el avatar habla 3-4 minutos
+costaría ≈ USD 1,70-2,20 más la mensualidad: parecido a LiveAvatar y unas diez veces más que el
+motor económico. No está integrado.
+
+---
+
+## 3. HeyGen LiveAvatar (avatar en vivo, opcional)
+
+Se activa en **Motor y APIs → Avatar en vivo**. La clave y las verificaciones se configuran en
+**HeyGen LiveAvatar**; pueden quedar listas y verificadas aunque el sitio use el motor económico.
 
 HeyGen está retirando su antigua **Interactive Avatar** y remite a la plataforma **LiveAvatar**
 (`api.liveavatar.com`), su versión de producción para avatares en tiempo real. Este sistema usa
@@ -52,7 +117,7 @@ HeyGen no publica en esas páginas una fecha exacta de cierre de la API anterior
   avatar `56aa5373edb14809a1572b36af99b94c` y voz `5fab49b6cbd84b2cb0320fd28f9e49de`.
   LiveAvatar espera el formato UUID con guiones y el sistema los convierte solo
   (`56aa5373-edb1-4809-a157-2b36af99b94c`). **Que ese ID exista en LiveAvatar solo se puede
-  confirmar con la clave real:** pulsa **API HeyGen → Verificar todo**. Si responde «no
+  confirmar con la clave real:** pulsa **HeyGen LiveAvatar → Verificar todo**. Si responde «no
   encontrado», usa **Ver mis avatares y voces** y copia el ID migrado en **Avatar y tema**.
 - **Modo sandbox**: para probar sin gastar créditos (avatar genérico, sesiones de ~1 minuto).
 - La clave **nunca llega al navegador**: el servidor crea e inicia cada sesión y solo entrega al
@@ -60,7 +125,7 @@ HeyGen no publica en esas páginas una fecha exacta de cierre de la API anterior
 
 ---
 
-## 3. Instalación en Plesk
+## 4. Instalación en Plesk
 
 1. **Sube los archivos.** Descarga el repositorio y copia todo su contenido dentro de
    `httpdocs` (o la carpeta del dominio o subdominio). No requiere Composer, Node ni base de datos.
@@ -82,12 +147,13 @@ HeyGen no publica en esas páginas una fecha exacta de cierre de la API anterior
    En *Plesk → Administrador de archivos* basta con dar permiso de escritura al grupo. El sistema
    crea solo las subcarpetas que falten.
 
-5. **Clave de LiveAvatar.** Dos formas:
-   - *La sencilla:* entra al panel y pégala en **API HeyGen** (se guarda fuera del repositorio y
-     se muestra enmascarada).
+5. **Claves de las APIs** (IA de texto y voz del motor económico; LiveAvatar solo si lo usarás).
+   Dos formas:
+   - *La sencilla:* entra al panel y pégalas en **Motor y APIs** (y la de LiveAvatar en
+     **HeyGen LiveAvatar**). Se guardan fuera del repositorio y se muestran enmascaradas.
    - *La automática:* antes de la primera visita copia `wj-content/config/claves.ejemplo.php`
-     como `wj-content/config/claves.php` y escribe la clave. Ese archivo está excluido del
-     repositorio.
+     como `wj-content/config/claves.php` y escribe las claves. Ese archivo está excluido del
+     repositorio; bórralo después de la primera visita.
 
 6. **Entra al panel y crea la cuenta:** `https://tu-dominio/wj-admin/`
 
@@ -106,8 +172,9 @@ HeyGen no publica en esas páginas una fecha exacta de cierre de la API anterior
    > credenciales de `wj-admin/.htpasswd` o `wj-content/config/.htpasswd` se trasladan solas al
    > archivo nuevo y el archivo viejo se borra.
 
-7. En **API HeyGen** pulsa **Verificar todo** (créditos, avatar y voz) y luego **Prueba de
-   sesión** (valida avatar, voz, idioma y contexto sin consumir créditos).
+7. En **Motor y APIs** pulsa **Verificar todo**: comprueba la IA de texto, la voz, la escucha y
+   los videos del motor elegido. Si usarás LiveAvatar, en **HeyGen LiveAvatar** pulsa también
+   **Prueba de sesión** (valida avatar, voz, idioma y contexto sin consumir créditos).
 
 8. Abre el sitio, pulsa **Iniciar conversación** y habla con el avatar.
 
@@ -118,7 +185,7 @@ HeyGen no publica en esas páginas una fecha exacta de cierre de la API anterior
 
 ---
 
-## 4. Configuración desde el panel
+## 5. Configuración desde el panel
 
 ### Avatar y tema
 - **Avatar:** nombre del personaje, ID del avatar, ID de la voz, idioma, calidad de video
@@ -132,7 +199,28 @@ HeyGen no publica en esas páginas una fecha exacta de cierre de la API anterior
 - Al guardar, el contexto se **sincroniza con LiveAvatar**. Abajo se ve la instrucción completa
   que recibe el avatar.
 
-### API HeyGen
+### Motor y APIs
+Elige el motor y configura cada pieza del motor económico: IA de texto (proveedor, modelo, clave,
+razonamiento, creatividad y turnos que recuerda), voz (ElevenLabs, Gemini TTS o navegador, con sus
+opciones), escucha, los dos videos del avatar (se pueden subir MP4 o WebM) y los topes de uso.
+Muestra las respuestas y los caracteres de voz del día y del mes, con el gasto estimado.
+
+| Botón | Qué hace | ¿Consume saldo? |
+|---|---|---|
+| **Verificar todo** | Verifica cada pieza del motor elegido (IA, voz, escucha y videos; o LiveAvatar). | Solo Gemini TTS genera una palabra |
+| **Verificar clave y modelo** | Lista los modelos de la IA y confirma que el configurado existe. | No |
+| **Probar respuesta** | Hace la primera pregunta sugerida y muestra la respuesta y el tiempo. | Una respuesta |
+| **Verificar saldo y voz** | Plan, caracteres usados y límite de ElevenLabs, y datos de la voz elegida. | No |
+| **Ver voces de la cuenta** | Lista las voces de ElevenLabs con muestra de audio y botón «Usar esta voz». | No |
+| **Probar Scribe** | Envía un segundo de silencio a ElevenLabs Scribe. | Fracción de centavo |
+| **Probar voz** | Genera y reproduce una frase con la voz elegida. | Una frase |
+| **Vaciar caché de respuestas** | Borra el saludo y las respuestas sugeridas guardadas. | No |
+
+Si falta el video en reposo o el de «hablando», se muestra el retrato con un movimiento suave.
+Junto a cada video puede haber una copia con el mismo nombre en el otro formato (`.webm` y `.mp4`):
+el sitio ofrece las dos y cada navegador usa la que puede reproducir.
+
+### HeyGen LiveAvatar
 | Botón | Qué hace | ¿Consume créditos? |
 |---|---|---|
 | **Verificar todo** | Consulta los créditos y confirma que el avatar y la voz existen y están activos. | No |
@@ -167,7 +255,7 @@ casilla **Enviado** se marca sola.
 
 ---
 
-## 5. Conversaciones registradas
+## 6. Conversaciones registradas
 
 Cada conversación queda en `wj-content/datos/conversaciones.json.php`:
 
@@ -184,7 +272,7 @@ pregunta) o **JSON**.
 
 ---
 
-## 6. Seguridad
+## 7. Seguridad
 
 Auditoría estática de septiembre de 2026 (código propio, sin pruebas contra el servidor en
 producción): los hallazgos se corrigieron y se verificaron con pruebas automatizadas. El informe
@@ -224,6 +312,20 @@ detallado (TLP:AMBER) se entrega aparte y **no** se publica en este repositorio.
   `Cross-Origin-Opener-Policy` y `Permissions-Policy` (micrófono solo en la página del avatar).
 - En un kiosco compartido, los datos de la persona se borran al terminar y la transcripción a los
   90 segundos; el formulario no usa autocompletado.
+
+**Motor económico**
+- Las claves de la IA, ElevenLabs y Gemini viven solo en el servidor; el navegador habla
+  únicamente con este sitio (`connect-src 'self'`) y no carga el módulo de LiveKit.
+- La voz solo lee textos que genera el servidor (el saludo y las respuestas de la IA), nunca un
+  texto enviado por el visitante: el sitio no sirve como lector gratuito.
+- Topes atómicos: preguntas por conversación, una pregunta cada 2 s, audios para Scribe (2 MB,
+  formato comprobado por sus primeros bytes) y **respuestas por hora sumando a todos** (tope de
+  gasto). Las respuestas se guardan desde el servidor como verificadas; lo que envíe el navegador
+  como respuesta del avatar se descarta.
+- La IA recibe reglas contra el cambio de instrucciones; aun así, el correo institucional quita
+  todas las direcciones web de la conversación, también de las respuestas.
+- Los videos subidos se aceptan solo si sus primeros bytes son de MP4 o WebM y quedan con nombre
+  generado.
 
 **Archivos y servidor**
 - `.htaccess` incluidos: raíz (sin listado de carpetas; bloquea `.git/` y todo lo que empiece por
@@ -267,7 +369,7 @@ Plesk (*Herramientas y configuración → Bloqueo de direcciones IP*, cárcel de
 
 ---
 
-## 7. Mantenimiento
+## 8. Mantenimiento
 
 | Tarea | Cómo |
 |---|---|
@@ -281,7 +383,7 @@ Plesk (*Herramientas y configuración → Bloqueo de direcciones IP*, cárcel de
 
 ---
 
-## 8. Estructura de archivos
+## 9. Estructura de archivos
 
 Solo existen tres carpetas: `wj-admin`, `wj-includes` y `wj-content`.
 
@@ -294,6 +396,7 @@ wj-admin/
   .htaccess                   Protección (autenticación de Apache opcional)
   index.php                   Conversaciones, casillas Creado/Enviado, detalle
   avatar.php                  Avatar, voz, tema, conocimiento y sugerencias
+  motor.php                   Motor del avatar, IA, voz, escucha, videos, topes y verificaciones
   api.php                     Clave de LiveAvatar y verificaciones
   ajustes.php                 Apariencia, formulario de inicio y límites
   correo.php                  Correo y prueba de envío
@@ -306,6 +409,7 @@ wj-includes/
   funciones.php               Utilidades (JSON, HTTP, rutas, textos)
   configuracion.php           Ajustes predeterminados, conocimiento del café, municipios y migración
   almacenamiento.php          Conversaciones en JSON con bloqueo
+  motor.php                   Motor económico: IA de texto, ElevenLabs, Gemini TTS, caché y topes
   heygen.php                  Cliente de HeyGen LiveAvatar
   seguridad.php               Sesión, CSRF, .htpasswd, límites
   correo.php                  Envío por mail() y SMTP
@@ -313,23 +417,27 @@ wj-includes/
   api/mensajes.php            Guarda preguntas y respuestas (POST)
   api/mantener.php            Mantiene viva la sesión (POST)
   api/finalizar.php           Cierra la conversación (POST, también sendBeacon)
+  api/responder.php           Respuesta de la IA con su voz (motor económico, POST)
+  api/transcribir.php         Voz a texto con ElevenLabs Scribe (motor económico, POST)
   css/app.css  css/admin.css  Estilos
   js/app.js  js/admin.js      Experiencia pública y panel
   js/vendor/three.min.js      three.js r149
-  js/vendor/livekit-client.umd.js  LiveKit 2.22.3 (video en tiempo real)
-  images/                     Logo, fondos y avatar (images/avatar/avatar-cafe.webp)
+  js/vendor/livekit-client.umd.js  LiveKit 2.22.3 (solo se carga con LiveAvatar)
+  images/                     Logo, fondos y avatar: retrato (avatar-cafe.webp) y videos en bucle
+                              (avatar-reposo y avatar-hablando, en .webm y .mp4)
 
 wj-content/                   Única carpeta escribible (sus datos no se suben al repositorio)
   .htaccess                   Solo imágenes por la web
   config/                     Ajustes, credenciales (.htpasswd.php), ejemplos y claves.php (opcional)
-  datos/                      conversaciones.json.php
-  subidas/                    Imágenes cargadas desde el panel (.htaccess: solo imágenes)
+  datos/                      conversaciones.json.php, uso-ia.json.php (contador de gasto)
+                              y voz/ (caché del saludo y de las respuestas sugeridas)
+  subidas/                    Imágenes y videos cargados desde el panel (.htaccess: solo esos formatos)
   logs/                       Bitácoras mensuales
 ```
 
 ---
 
-## 9. Herramientas de desarrollo
+## 10. Herramientas de desarrollo
 
 Para construir y revisar esta versión se usaron, instaladas en el equipo de desarrollo y **no
 dentro del proyecto** (para respetar la regla de tres carpetas):
@@ -344,4 +452,4 @@ movimiento y transparencia reducidos). Ninguna es necesaria en el servidor.
 
 ---
 
-Gobernación de Nariño · QuéDice! · versión 2.4.0
+Gobernación de Nariño · QuéDice! · versión 2.5.0

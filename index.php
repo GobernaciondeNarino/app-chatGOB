@@ -43,7 +43,9 @@ $exigirAceptacion = !empty(musa_dato($ajustes, 'seguridad.exigir_aceptacion', tr
 $permitirEscribir = !empty(musa_dato($avatar, 'permitir_escribir', true));
 $sugerencias      = musa_sugerencias($ajustes);
 $nombreAvatar     = (string) musa_dato($avatar, 'nombre', 'Anfitrión');
-$disponible       = musa_heygen_configurado($ajustes);
+$motor            = musa_motor($ajustes);
+$economico        = $motor === 'economico';
+$disponible       = musa_motor_disponible($ajustes);
 $entidad          = (string) musa_dato($marca, 'entidad', 'Gobernación de Nariño');
 $sitioEntidad     = musa_url_externa(musa_dato($marca, 'sitio_entidad', ''));
 $opacidadFondo    = max(0, min(100, (int) musa_dato($marca, 'opacidad_fondo', 35))) / 100;
@@ -51,9 +53,17 @@ $formatos         = array('3/4' => '3 / 4', '1/1' => '1 / 1', '16/9' => '16 / 9'
 $formato          = (string) musa_dato($avatar, 'formato', '3/4');
 $proporcion       = isset($formatos[$formato]) ? $formatos[$formato] : '3 / 4';
 $municipios       = !empty($form['ciudad_lista']) ? musa_municipios_narino() : array();
+$videoReposo      = $economico ? musa_video_fuentes(musa_dato($ajustes, 'animacion.reposo', '')) : array();
+$videoHablando    = $economico ? musa_video_fuentes(musa_dato($ajustes, 'animacion.hablando', '')) : array();
+$fuentesVideo = function ($fuentes) {
+    foreach ($fuentes as $f) { echo '<source src="' . musa_e($f['url']) . '" type="' . musa_e($f['tipo']) . '">'; }
+};
+$escucha          = (string) musa_dato($ajustes, 'escucha.proveedor', 'navegador');
+$escuchaServidor  = musa_elevenlabs_clave($ajustes) !== '';   // ElevenLabs Scribe disponible como respaldo
 
 $configJs = array(
     'token'            => $token,
+    'motor'            => $motor,
     'efectos3d'        => (bool) musa_dato($ajustes, 'sistema.efectos_3d', true),
     'formulario'       => $formularioActivo,
     'exigirAceptacion' => $exigirAceptacion,
@@ -63,6 +73,16 @@ $configJs = array(
         'microfono'    => (bool) musa_dato($avatar, 'microfono_inicial', true),
         'escribir'     => $permitirEscribir,
         'pulsarHablar' => musa_dato($avatar, 'interactividad', 'CONVERSATIONAL') === 'PUSH_TO_TALK',
+    ),
+    // Motor económico: cómo habla (la voz del navegador es el respaldo si falla la del servidor) y cómo escucha.
+    'voz'              => array(
+        'idioma'    => (string) musa_dato($ajustes, 'voz.navegador.idioma', 'es-CO'),
+        'velocidad' => max(0.5, min(1.5, (float) musa_dato($ajustes, 'voz.navegador.velocidad', 1.0))),
+    ),
+    'escucha'          => array(
+        'proveedor' => $escucha === 'elevenlabs' && $escuchaServidor ? 'servidor' : 'navegador',
+        'respaldo'  => $escuchaServidor,
+        'idioma'    => (string) musa_dato($ajustes, 'escucha.idioma', 'es-CO'),
     ),
     'colores'          => array(
         'fondo'    => $c('fondo', '#8F1824'),
@@ -75,6 +95,7 @@ $configJs = array(
         'conectando' => $t('conectando', 'Preparando al anfitrión…'),
         'escuchando' => $t('escuchando', 'Te escucho…'),
         'hablando'   => $t('hablando', 'Respondiendo…'),
+        'pensando'   => $t('pensando', 'Pensando…'),
         'microfono'  => $t('aviso_microfono', ''),
         'persona'    => 'Tú',
     ),
@@ -83,6 +104,8 @@ $configJs = array(
         'mensajes'  => musa_url('wj-includes/api/mensajes.php'),
         'mantener'  => musa_url('wj-includes/api/mantener.php'),
         'finalizar' => musa_url('wj-includes/api/finalizar.php'),
+        'responder' => musa_url('wj-includes/api/responder.php'),
+        'transcribir' => musa_url('wj-includes/api/transcribir.php'),
     ),
 );
 
@@ -126,7 +149,7 @@ if ($fondo !== '') { $css['--musa-imagen-fondo'] = 'url(' . implode('/', array_m
 <link rel="stylesheet" href="<?php echo musa_e(musa_recurso('wj-includes/css/app.css')); ?>">
 <style nonce="<?php echo musa_e($nonce); ?>">:root{<?php foreach ($css as $var => $valor) { echo $var . ':' . musa_e($valor) . ';'; } ?>}</style>
 </head>
-<body class="estado-inicio">
+<body class="estado-inicio motor-<?php echo $economico ? 'economico' : 'liveavatar'; ?>">
 
 <div id="app" class="app">
 
@@ -164,8 +187,18 @@ if ($fondo !== '') { $css['--musa-imagen-fondo'] = 'url(' . implode('/', array_m
       <?php if ($retrato !== '') : ?>
         <img class="avatar-retrato" id="avatar-retrato" src="<?php echo musa_e($retrato); ?>" alt="<?php echo musa_e($nombreAvatar); ?>">
       <?php endif; ?>
-      <video class="avatar-video" id="avatar-video" playsinline autoplay muted></video>
-      <audio id="avatar-audio" autoplay></audio>
+      <?php if ($economico) : ?>
+        <?php if ($videoReposo !== array()) : ?>
+          <video class="avatar-animado visible" id="avatar-reposo" muted loop playsinline preload="auto" aria-hidden="true"<?php echo $retrato !== '' ? ' poster="' . musa_e($retrato) . '"' : ''; ?>><?php $fuentesVideo($videoReposo); ?></video>
+        <?php endif; ?>
+        <?php if ($videoHablando !== array()) : ?>
+          <video class="avatar-animado" id="avatar-hablando" muted loop playsinline preload="auto" aria-hidden="true"><?php $fuentesVideo($videoHablando); ?></video>
+        <?php endif; ?>
+        <audio id="avatar-audio"></audio>
+      <?php else : ?>
+        <video class="avatar-video" id="avatar-video" playsinline autoplay muted></video>
+        <audio id="avatar-audio" autoplay></audio>
+      <?php endif; ?>
 
       <div class="estado-avatar" id="estado-avatar" role="status" aria-live="polite">
         <span class="ondas" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span>
@@ -331,7 +364,7 @@ if ($fondo !== '') { $css['--musa-imagen-fondo'] = 'url(' . implode('/', array_m
 
 <script nonce="<?php echo musa_e($nonce); ?>">window.MUSA_CONFIG = <?php echo json_encode($configJs, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>;</script>
 <script src="<?php echo musa_e(musa_recurso('wj-includes/js/vendor/three.min.js')); ?>" defer></script>
-<script src="<?php echo musa_e(musa_recurso('wj-includes/js/vendor/livekit-client.umd.js')); ?>" defer></script>
+<?php if (!$economico) : ?><script src="<?php echo musa_e(musa_recurso('wj-includes/js/vendor/livekit-client.umd.js')); ?>" defer></script><?php endif; ?>
 <script src="<?php echo musa_e(musa_recurso('wj-includes/js/app.js')); ?>" defer></script>
 </body>
 </html>

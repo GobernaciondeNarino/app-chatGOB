@@ -3,8 +3,8 @@
  * QuéDice! · Cierra la conversación
  * POST JSON (también por navigator.sendBeacon): { token, codigo, clave, motivo, mensajes }
  *
- * Guarda los últimos mensajes pendientes, detiene la sesión en LiveAvatar y,
- * si el navegador no alcanzó a registrar nada, recupera la transcripción oficial.
+ * Guarda los últimos mensajes pendientes, detiene la sesión en LiveAvatar y aplica su
+ * transcripción oficial. En el motor económico solo cierra el registro.
  */
 require_once __DIR__ . '/comun.php';
 
@@ -18,7 +18,8 @@ if (in_array($c['estado'], array('finalizada', 'error'), true)) {
 }
 
 $ajustes = musa_ajustes();
-$mensajes = musa_api_mensajes(isset($datos['mensajes']) ? $datos['mensajes'] : array());
+// En el motor económico el servidor ya guardó todo: lo que envíe el navegador se descarta.
+$mensajes = $c['motor'] === 'economico' ? array() : musa_api_mensajes(isset($datos['mensajes']) ? $datos['mensajes'] : array());
 if ($mensajes !== array()) {
     musa_conversacion_agregar_mensajes($c['id'], $mensajes, (int) musa_dato($ajustes, 'seguridad.maximo_mensajes', 400));
 }

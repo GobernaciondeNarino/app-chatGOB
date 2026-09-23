@@ -61,11 +61,13 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
     musa_guardar_ajustes($nuevos);
     musa_log('Avatar y tema guardados', array('usuario' => $usuarioActual));
 
-    if (musa_heygen_configurado($nuevos)) {
+    if (musa_motor($nuevos) === 'liveavatar' && musa_heygen_configurado($nuevos)) {
         $s = musa_heygen_sincronizar_contexto(musa_ajustes(true));
         musa_panel_mensaje('Cambios guardados. ' . $s['mensaje'], $s['ok'] ? 'exito' : 'error');
-    } else {
+    } elseif (musa_motor($nuevos) === 'liveavatar') {
         musa_panel_mensaje('Cambios guardados. El contexto se sincronizará con LiveAvatar cuando configures la clave de API.');
+    } else {
+        musa_panel_mensaje('Cambios guardados. El motor económico usa el tema desde la siguiente pregunta.');
     }
     header('Location: avatar.php');
     exit;
@@ -87,10 +89,13 @@ musa_panel_mensaje();
 <?php musa_campo_token(); ?>
 
 <section class="bloque-panel">
-  <h2>Avatar de HeyGen (LiveAvatar)</h2>
-  <p class="nota">Los ID se copian desde <a href="https://app.liveavatar.com" target="_blank" rel="noopener">app.liveavatar.com</a>.
+  <h2>Personaje y conversación</h2>
+  <p class="nota">El nombre, el idioma, la forma de hablar, el micrófono y la duración valen para los dos motores.
+    El ID del avatar, la voz, la calidad y el modo sandbox solo se usan con <strong>HeyGen LiveAvatar</strong>
+    (la voz y los videos del motor económico se eligen en <a href="motor.php">Motor y APIs</a>).
+    Los ID se copian desde <a href="https://app.liveavatar.com" target="_blank" rel="noopener">app.liveavatar.com</a>.
     Si pegas un ID de 32 caracteres sin guiones, el sistema lo convierte al formato UUID. Revisa que exista en
-    <a href="api.php">API HeyGen → Verificar avatar y voz</a>.</p>
+    <a href="api.php">HeyGen LiveAvatar → Verificar todo</a>.</p>
   <div class="rejilla">
     <label>Nombre del personaje<input type="text" name="avatar[nombre]" maxlength="60" value="<?php echo musa_e(musa_dato($a, 'nombre', '')); ?>"></label>
     <label>ID del avatar<input type="text" name="avatar[avatar_id]" maxlength="64" value="<?php echo musa_e(musa_dato($a, 'avatar_id', '')); ?>" spellcheck="false">
@@ -134,8 +139,9 @@ musa_panel_mensaje();
 
 <section class="bloque-panel">
   <h2>Tema de la conversación</h2>
-  <p class="nota">Esto es lo que el avatar sabe y cómo habla. Se envía a LiveAvatar como «contexto».
-    Estado: <strong><?php echo $contextId === '' ? 'sin sincronizar' : ($sincronizado ? 'sincronizado' : 'con cambios pendientes'); ?></strong>
+  <p class="nota">Esto es lo que el avatar sabe y cómo habla. El motor económico lo envía a la IA de texto con cada pregunta; LiveAvatar lo recibe como «contexto».
+    Estado en LiveAvatar:
+    <strong><?php echo $contextId === '' ? 'sin sincronizar' : ($sincronizado ? 'sincronizado' : 'con cambios pendientes'); ?></strong>
     <?php if ($contextId !== '') : ?> · <code><?php echo musa_e($contextId); ?></code> · <?php echo musa_e(musa_dato($ajustesPanel, 'heygen.context_fecha', '')); ?><?php endif; ?></p>
   <div class="rejilla">
     <label>Tema<input type="text" name="tema[nombre]" maxlength="80" value="<?php echo musa_e(musa_dato($t, 'nombre', '')); ?>"></label>
@@ -179,7 +185,7 @@ musa_panel_mensaje();
 </section>
 
 <div class="acciones-panel">
-  <button type="submit" class="boton">Guardar y sincronizar con LiveAvatar</button>
+  <button type="submit" class="boton"><?php echo musa_motor($ajustesPanel) === 'liveavatar' ? 'Guardar y sincronizar con LiveAvatar' : 'Guardar'; ?></button>
 </div>
 </form>
 

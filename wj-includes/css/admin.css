@@ -27,6 +27,7 @@ body {
 }
 
 a { color: var(--panel-primario); }
+[hidden] { display: none !important; }
 
 /* ---------- Cabecera ---------- */
 
@@ -325,7 +326,7 @@ input:focus, select:focus, textarea:focus {
 /* ---------- Conversaciones (v2) ---------- */
 
 .estado-finalizada { background: #E6F2EC; color: var(--panel-ok); }
-.estado-activa { background: #E6F0FA; color: #1B5A8C; }
+.estado-activa { background: #FDECEE; color: #8F1824; }
 .estado-iniciando { background: #FFF4DA; color: var(--panel-aviso); }
 
 .exportar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
@@ -361,3 +362,12 @@ label small { display: block; font-weight: 400; margin-top: 4px; }
 
 input.corto { width: 6em; display: inline-block; margin: 0 4px; }
 .alerta form.en-linea { display: inline-flex; align-items: center; gap: 6px; margin-left: 6px; }
+
+/* ---------- Motor y APIs ---------- */
+.vista-previa-video { width: 150px; aspect-ratio: 2 / 3; object-fit: cover; display: block; margin-bottom: 8px; border-radius: 10px; background: #fff; border: 1px solid var(--panel-borde); }
+.campo-imagen select { margin-top: 4px; }
+.bloque-panel details { margin-top: 12px; }
+.bloque-panel summary { cursor: pointer; font-weight: 600; font-size: 13.5px; color: var(--panel-primario); margin-bottom: 10px; }
+.bloque-panel h3 { margin-top: 18px; }
+.tabla audio { height: 34px; max-width: 220px; }
+.fila-actual { background: #FFF6F6; }

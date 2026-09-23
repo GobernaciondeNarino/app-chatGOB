@@ -3,9 +3,11 @@
  * QuéDice! · Inicia una conversación con el avatar
  * POST JSON: { token, nombre, correo, telefono, ciudad, autorizacion, sitio_web }
  *
- * Valida el formulario de inicio (si está activo), crea el registro de la conversación,
- * pide a LiveAvatar el token de sesión e inicia la sesión desde el servidor.
- * Al navegador solo llegan la URL y el token de la sala LiveKit: la clave de API no sale de aquí.
+ * Valida el formulario de inicio (si está activo) y crea el registro de la conversación.
+ * - Motor económico: guarda el saludo y lo devuelve con su audio (en caché tras la primera vez).
+ * - LiveAvatar: pide el token de sesión e inicia la sesión desde el servidor; al navegador solo
+ *   llegan la URL y el token de la sala LiveKit.
+ * Las claves de API no salen de aquí.
  */
 require_once __DIR__ . '/comun.php';
 
@@ -65,8 +67,9 @@ if (musa_limite_superado($ip)) {
     musa_responder_json(array('ok' => false, 'mensaje' => 'Has iniciado varias conversaciones seguidas. Inténtalo de nuevo más tarde.'), 429);
 }
 
-if (!musa_heygen_configurado($ajustes)) {
-    musa_log('Conversación rechazada: falta la clave de LiveAvatar');
+$motor = musa_motor($ajustes);
+if (!musa_motor_disponible($ajustes)) {
+    musa_log($motor === 'liveavatar' ? 'Conversación rechazada: falta la clave de LiveAvatar' : 'Conversación rechazada: falta configurar la IA de texto');
     musa_responder_json(array('ok' => false, 'mensaje' => 'El anfitrión no está disponible en este momento.'), 503);
 }
 
@@ -82,7 +85,8 @@ musa_conversaciones_cerrar_vencidas($ajustes, 2, false);
 $navegador = musa_texto(isset($_SERVER['HTTP_USER_AGENT']) ? $_SERVER['HTTP_USER_AGENT'] : '', 250);
 $conversacion = musa_conversacion_crear(array_merge($campos, array(
     'tema'      => (string) musa_dato($ajustes, 'tema.nombre', 'Café'),
-    'avatar_id' => musa_heygen_uuid(musa_dato($ajustes, 'avatar.avatar_id', '')),
+    'motor'     => $motor,
+    'avatar_id' => $motor === 'liveavatar' ? musa_heygen_uuid(musa_dato($ajustes, 'avatar.avatar_id', '')) : '',
     'ip'        => $ip,
     'navegador' => $navegador,
 )));
@@ -92,6 +96,25 @@ if (isset($conversacion['error'])) {
     }
     musa_log('Conversación rechazada: se alcanzó el cupo global de conversaciones');
     musa_responder_json(array('ok' => false, 'mensaje' => 'El anfitrión está atendiendo a muchas personas. Inténtalo de nuevo en unos minutos.'), 503);
+}
+
+if ($motor === 'economico') {
+    // El saludo lo genera el servidor: queda guardado como mensaje verificado del avatar.
+    $saludo = musa_texto(musa_dato($ajustes, 'tema.saludo', ''), 600);
+    if ($saludo !== '') {
+        musa_conversacion_agregar_mensajes($conversacion['id'], array(array('rol' => 'avatar', 'texto' => $saludo, 'origen' => 'voz', 'fuente' => 'servidor', 'ref' => 'saludo')), 5);
+    } else {
+        musa_conversacion_actualizar($conversacion['id'], array('estado' => 'activa'));
+    }
+    musa_log('Conversación iniciada', array('codigo' => $conversacion['codigo'], 'motor' => 'economico'));
+    musa_responder_json(array(
+        'ok'       => true,
+        'motor'    => 'economico',
+        'codigo'   => $conversacion['codigo'],
+        'clave'    => $conversacion['clave'],
+        'duracion' => max(60, (int) musa_dato($ajustes, 'avatar.duracion_maxima', 600)),
+        'saludo'   => $saludo !== '' ? musa_api_voz($saludo, $ajustes, true) : null,
+    ));
 }
 
 $token = musa_heygen_crear_token($ajustes);
@@ -108,6 +131,7 @@ musa_log('Conversación iniciada', array('codigo' => $conversacion['codigo'], 's
 
 musa_responder_json(array(
     'ok'          => true,
+    'motor'       => 'liveavatar',
     'codigo'      => $conversacion['codigo'],
     'clave'       => $conversacion['clave'],
     'session_id'  => $sessionId,

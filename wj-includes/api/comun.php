@@ -2,7 +2,7 @@
 /**
  * QuéDice! · Base común de la API pública
  * Valida método, cuerpo JSON y token CSRF, y libera la sesión
- * antes de hablar con LiveAvatar para no bloquear otras peticiones.
+ * antes de hablar con LiveAvatar o con las APIs de IA para no bloquear otras peticiones.
  */
 require_once dirname(__DIR__) . '/arranque.php';
 
@@ -51,4 +51,19 @@ function musa_api_mensajes($lista, $maximo = 30) {
         $limpios[] = array('rol' => $rol, 'texto' => $texto, 'origen' => $origen, 'fuente' => 'navegador', 'ref' => substr($ref, 0, 80), 'hora' => date('Y-m-d H:i:s'));
     }
     return $limpios;
+}
+
+/**
+ * Texto que dirá el avatar, con su audio si la voz se genera en el servidor.
+ * Si la voz del servidor falla (o se eligió la del navegador), el navegador lo pronuncia con su propia voz.
+ */
+function musa_api_voz($texto, $ajustes, $cache = false) {
+    $r = musa_voz_sintetizar($texto, $ajustes, $cache);
+    $conAudio = $r['ok'] && $r['audio'] !== '';
+    return array(
+        'texto' => $texto,
+        'audio' => $conAudio ? base64_encode($r['audio']) : null,
+        'tipo'  => $conAudio ? $r['tipo'] : '',
+        'voz'   => $conAudio ? 'servidor' : 'navegador',
+    );
 }

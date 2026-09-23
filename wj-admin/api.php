@@ -75,6 +75,9 @@ $vozActual = musa_heygen_uuid(musa_dato($ajustesPanel, 'avatar.voice_id', ''));
 musa_panel_inicio('API de HeyGen LiveAvatar', 'api');
 musa_panel_mensaje();
 ?>
+<?php if (musa_motor($ajustesPanel) !== 'liveavatar') : ?>
+  <div class="alerta">El sitio usa ahora el <strong>motor económico</strong>. LiveAvatar solo se usa si lo eliges en <a href="motor.php">Motor y APIs</a>; puedes dejar configurada y verificada su clave para cambiar cuando haya recursos.</div>
+<?php endif; ?>
 
 <?php foreach ($resultados as $titulo => $r) : ?>
   <div class="alerta <?php echo !empty($r['ok']) ? 'exito' : 'error'; ?>">

@@ -150,11 +150,27 @@
     });
   });
 
-  /* Tarjetas de proveedor de IA */
+  /* Tarjetas de opciones (motor, voz, escucha): cada grupo marca solo su opción elegida. */
   $$('.opcion input[type="radio"]').forEach(function (radio) {
     radio.addEventListener('change', function () {
-      $$('.opcion').forEach(function (opcion) { opcion.classList.remove('activa'); });
+      var grupo = radio.closest('.opciones-proveedor') || doc;
+      $$('.opcion', grupo).forEach(function (opcion) { opcion.classList.remove('activa'); });
       if (radio.checked) { radio.closest('.opcion').classList.add('activa'); }
     });
   });
+
+  /* IA de texto: al cambiar de proveedor se proponen su modelo y su nivel de razonamiento. */
+  var iaProveedor = $('#ia-proveedor');
+  if (iaProveedor) {
+    var personalizado = $('.campo-personalizado');
+    var mostrarBase = function () { if (personalizado) { personalizado.hidden = iaProveedor.value !== 'personalizado'; } };
+    mostrarBase();
+    iaProveedor.addEventListener('change', function () {
+      var opcion = iaProveedor.options[iaProveedor.selectedIndex];
+      var modelo = $('#ia-modelo'), razonamiento = $('#ia-razonamiento');
+      if (modelo) { modelo.value = opcion.dataset.modelo || ''; }
+      if (razonamiento) { razonamiento.value = opcion.dataset.razonamiento || ''; }
+      mostrarBase();
+    });
+  }
 })();

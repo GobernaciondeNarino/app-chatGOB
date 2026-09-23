@@ -42,6 +42,7 @@
         "conectando": "Preparando al anfitrión…",
         "escuchando": "Te escucho…",
         "hablando": "Respondiendo…",
+        "pensando": "Pensando…",
         "transcripcion": "Transcripción de la conversación",
         "transcripcion_vacia": "Pulsa «Iniciar conversación» y pregunta en voz alta o por escrito. Aquí verás lo que digan tú y el anfitrión.",
         "sugerencias": "Puedes preguntar:",
@@ -83,8 +84,53 @@
         ],
         "enlaces": []
     },
+    "motor": {
+        "tipo": "economico"
+    },
+    "ia": {
+        "proveedor": "gemini",
+        "base_url": "",
+        "modelo": "gemini-3.1-flash-lite",
+        "api_key": "",
+        "razonamiento": "minimal",
+        "temperatura": 0.5,
+        "historial": 6
+    },
+    "voz": {
+        "proveedor": "elevenlabs",
+        "elevenlabs": {
+            "api_key": "",
+            "voice_id": "",
+            "modelo": "eleven_flash_v2_5",
+            "velocidad": 1,
+            "estabilidad": 0.5,
+            "similitud": 0.75
+        },
+        "gemini": {
+            "api_key": "",
+            "modelo": "gemini-3.8-flash-lite-tts",
+            "voz": "Orus",
+            "estilo": "cálido, cercano y amable, con acento colombiano"
+        },
+        "navegador": {
+            "idioma": "es-CO",
+            "velocidad": 1
+        }
+    },
+    "escucha": {
+        "proveedor": "navegador",
+        "idioma": "es-CO"
+    },
+    "animacion": {
+        "reposo": "wj-includes/images/avatar/avatar-reposo.mp4",
+        "hablando": "wj-includes/images/avatar/avatar-hablando.mp4"
+    },
     "heygen": {
-        "endpoint": "https://api.liveavatar.com"
+        "api_key": "",
+        "endpoint": "https://api.liveavatar.com",
+        "context_id": "",
+        "context_huella": "",
+        "context_fecha": ""
     },
     "formulario": {
         "activo": true,
@@ -122,6 +168,8 @@
         "maximo_activas": 15,
         "exigir_aceptacion": true,
         "maximo_mensajes": 400,
+        "maximo_preguntas": 30,
+        "respuestas_por_hora": 600,
         "proxies_confiables": []
     },
     "sistema": {

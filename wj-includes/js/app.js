@@ -1,19 +1,27 @@
-/* QuéDice! · Avatar conversacional (HeyGen LiveAvatar + three.js)
+/* QuéDice! · Avatar conversacional (motor económico o HeyGen LiveAvatar + three.js)
  *
  * Flujo:
  *  1. «Iniciar conversación» → formulario de inicio (si está activo en wj-admin).
- *  2. POST api/sesion.php → el servidor crea e inicia la sesión en LiveAvatar y devuelve
- *     la sala LiveKit (URL + token) y el código de la conversación.
- *  3. El navegador se une a la sala: video y voz del avatar, micrófono de la persona.
- *     Los eventos llegan por el canal «agent-response» y los comandos salen por «agent-control».
- *  4. Cada pregunta (voz o texto) y cada respuesta se muestran en la transcripción y se
- *     guardan en el servidor (api/mensajes.php) → wj-content/datos/conversaciones.json.php
+ *  2. POST api/sesion.php → el servidor crea la conversación y devuelve su código.
+ *
+ *  Motor económico (predeterminado):
+ *  3. El avatar es un video en bucle (reposo) que cambia al video «hablando» mientras suena la voz.
+ *  4. La persona habla (reconocimiento de voz del navegador o ElevenLabs Scribe vía api/transcribir.php)
+ *     o escribe; la pregunta va a api/responder.php, que devuelve el texto y el audio de la respuesta
+ *     y guarda ambos en el servidor. Si no llega audio, el navegador lo lee con su propia voz.
+ *
+ *  LiveAvatar:
+ *  3. El servidor inicia la sesión y devuelve la sala LiveKit (URL + token); el navegador se une:
+ *     video y voz del avatar, micrófono de la persona. Los eventos llegan por «agent-response» y los
+ *     comandos salen por «agent-control». Lo dicho se guarda con api/mensajes.php.
+ *
  *  5. «Terminar», fin del tiempo o cierre de la pestaña → api/finalizar.php.
  */
 (function () {
   'use strict';
 
   var CONFIG = window.MUSA_CONFIG || {};
+  var MOTOR = CONFIG.motor === 'liveavatar' ? 'liveavatar' : 'economico';
   var doc = document;
   var TOPICO_COMANDOS = 'agent-control';
   var TOPICO_EVENTOS = 'agent-response';
@@ -510,7 +518,7 @@
   var extrasAudio = [];
 
   function claseEstado(nombre) {
-    doc.body.classList.remove('estado-inicio', 'estado-conectando', 'estado-escuchando', 'estado-hablando', 'estado-final');
+    doc.body.classList.remove('estado-inicio', 'estado-conectando', 'estado-escuchando', 'estado-hablando', 'estado-pensando', 'estado-final');
     if (nombre) { doc.body.classList.add('estado-' + nombre); }
   }
 
@@ -518,6 +526,7 @@
     var texto = $('estado-texto');
     if (nombre === 'hablando') { texto.textContent = CONFIG.textos.hablando; claseEstado('hablando'); }
     else if (nombre === 'escuchando') { texto.textContent = CONFIG.textos.escuchando; claseEstado('escuchando'); }
+    else if (nombre === 'pensando') { texto.textContent = CONFIG.textos.pensando || '…'; claseEstado('pensando'); }
     else { texto.textContent = CONFIG.avatar.nombre; claseEstado(null); }
     Escena.estadoAvatar && Escena.estadoAvatar(nombre);
   }
@@ -705,8 +714,9 @@
     }, 1000);
   }
 
-  /** Pide la sesión al servidor y se une a la sala. */
+  /** Pide la sesión al servidor y se une a la sala (LiveAvatar) o arranca el motor económico. */
   function conectar(datosPersona) {
+    if (MOTOR === 'economico') { return conectarEconomico(datosPersona); }
     if (!LK) { avisar('El navegador no pudo cargar el módulo de video. Recarga la página.'); return Promise.resolve(false); }
     estado = 'conectando';
     agenteListo = false; videoListo = false;
@@ -775,6 +785,12 @@
       try { sala.disconnect(); } catch (e) { /* ya cerrada */ }
       sala = null;
     }
+    if (MOTOR === 'economico') {
+      eco.turno++;
+      eco.esperando = false;
+      Voz.detener();
+      Escucha.apagar();
+    }
     Escena.analizador = null;
     doc.body.classList.remove('en-vivo', 'pide-audio');
     estadoAvatar('');
@@ -813,6 +829,7 @@
 
   /** Pregunta escrita o sugerencia. */
   function preguntar(texto) {
+    if (MOTOR === 'economico') { preguntarEconomico(texto, 'texto'); return; }
     texto = String(texto || '').trim();
     if (!texto || estado !== 'activa') { return; }
     if (doc.body.classList.contains('estado-hablando')) { comando('avatar.interrupt'); }
@@ -822,6 +839,505 @@
     Transcripcion.persona(texto);
     Guardado.agregar('persona', texto, 'texto');
     comando('avatar.speak_response', { text: texto });
+  }
+
+  /* ------------------------------------------------------------------ */
+  /*  Motor económico: videos del avatar                                  */
+  /* ------------------------------------------------------------------ */
+
+  var Animacion = (function () {
+    var reposo = $('avatar-reposo');
+    var hablandoV = $('avatar-hablando');
+    var marco = $('avatar-marco');
+    var apagar = null;
+
+    function reproducir(v) {
+      if (!v) { return; }
+      try { var p = v.play(); if (p && p.catch) { p.catch(function () {}); } } catch (e) { /* sin video */ }
+    }
+    // El bucle de reposo no se reproduce si la persona pidió reducir el movimiento (queda el primer cuadro).
+    if (reposo && !reducirMovimiento) { reproducir(reposo); }
+
+    return {
+      /** Cambia al video «hablando» (fundido corto) o vuelve al de reposo. */
+      hablar: function (activo) {
+        if (hablandoV) {
+          clearTimeout(apagar);
+          if (activo) {
+            if (!hablandoV.classList.contains('visible')) { try { hablandoV.currentTime = 0; } catch (e) { /* aún cargando */ } }
+            reproducir(hablandoV);
+            hablandoV.classList.add('visible');
+          } else {
+            hablandoV.classList.remove('visible');
+            apagar = setTimeout(function () { hablandoV.pause(); }, 250);
+          }
+        } else if (marco && !reducirMovimiento) {
+          marco.classList.toggle('hablando', !!activo);
+        }
+      },
+      reanudar: function () { if (reposo && !reducirMovimiento) { reproducir(reposo); } }
+    };
+  })();
+
+  /* ------------------------------------------------------------------ */
+  /*  Motor económico: voz del avatar                                     */
+  /* ------------------------------------------------------------------ */
+
+  var Voz = (function () {
+    var api = { hablando: false };
+    var fin = null;          // cierra la frase en curso
+    var pendiente = null;    // audio que el navegador bloqueó hasta que la persona active el sonido
+    var urlActual = null;
+    var fuenteAnalisis = null, analizador = null;
+
+    function blobDesdeBase64(b64, tipo) {
+      var binario = atob(b64);
+      var bytes = new Uint8Array(binario.length);
+      for (var i = 0; i < binario.length; i++) { bytes[i] = binario.charCodeAt(i); }
+      return new Blob([bytes], { type: tipo });
+    }
+
+    function soltarUrl() {
+      if (urlActual) { try { URL.revokeObjectURL(urlActual); } catch (e) { /* nada */ } urlActual = null; }
+    }
+
+    /**
+     * El aura 3D sigue el volumen de la voz. Se analiza una copia del audio (captureStream) para no
+     * desviar la salida por el contexto de audio: si ese contexto se suspende, la voz se sigue oyendo.
+     */
+    function analizar() {
+      if (!contextoAudio || !Escena.activa || !audio || !audio.captureStream) { return; }
+      try {
+        var pistas = audio.captureStream().getAudioTracks();
+        if (!pistas.length) { return; }
+        if (!analizador) {
+          analizador = contextoAudio.createAnalyser();
+          analizador.fftSize = 256;
+          analizador.smoothingTimeConstant = 0.7;
+        }
+        if (fuenteAnalisis) { try { fuenteAnalisis.disconnect(); } catch (e) { /* nada */ } }
+        fuenteAnalisis = contextoAudio.createMediaStreamSource(new MediaStream([pistas[0]]));
+        fuenteAnalisis.connect(analizador);
+        Escena.analizador = analizador;
+      } catch (e) { /* sin análisis: el aura se anima con el estado */ }
+    }
+
+    function elegirVoz() {
+      var voces = (window.speechSynthesis && window.speechSynthesis.getVoices()) || [];
+      var preferidas = [String(CONFIG.voz && CONFIG.voz.idioma || 'es-CO').toLowerCase(), 'es-co', 'es-us', 'es-419', 'es-mx', 'es-es'];
+      for (var p = 0; p < preferidas.length; p++) {
+        for (var v = 0; v < voces.length; v++) {
+          if (String(voces[v].lang).toLowerCase().replace('_', '-') === preferidas[p]) { return voces[v]; }
+        }
+      }
+      for (var w = 0; w < voces.length; w++) { if (/^es/i.test(voces[w].lang)) { return voces[w]; } }
+      return null;
+    }
+    if (window.speechSynthesis && 'onvoiceschanged' in window.speechSynthesis) {
+      window.speechSynthesis.onvoiceschanged = function () { /* las voces cargan tarde en Chrome */ };
+    }
+
+    /** Frases cortas: Chrome corta las lecturas largas de speechSynthesis a los ~15 s. */
+    function trocear(texto) {
+      var frases = String(texto).replace(/([.!?…;])\s+/g, '$1\n').split('\n');
+      var partes = [], actual = '';
+      frases.forEach(function (f) {
+        if ((actual + ' ' + f).length > 180 && actual) { partes.push(actual); actual = f; }
+        else { actual = actual ? actual + ' ' + f : f; }
+      });
+      if (actual) { partes.push(actual); }
+      return partes;
+    }
+
+    /** Lee el texto con la voz del navegador (gratis; la calidad depende del equipo). */
+    function hablarNavegador(texto, empezar, terminarFrase) {
+      var sintesis = window.speechSynthesis;
+      if (!sintesis || !window.SpeechSynthesisUtterance || !texto) { empezar(); setTimeout(terminarFrase, 300); return; }
+      sintesis.cancel();
+      var voz = elegirVoz();
+      var partes = trocear(texto);
+      var i = 0;
+      // Seguros: hay navegadores que no avisan el inicio o el final de la lectura.
+      var arranque = setTimeout(empezar, 2500);
+      var limite = setTimeout(function () { sintesis.cancel(); terminarFrase(); }, 6000 + texto.length * 110);
+      function cerrar() { clearTimeout(arranque); clearTimeout(limite); terminarFrase(); }
+      function siguiente() {
+        if (i >= partes.length) { cerrar(); return; }
+        var u = new SpeechSynthesisUtterance(partes[i++]);
+        u.lang = (CONFIG.voz && CONFIG.voz.idioma) || 'es-CO';
+        if (voz) { u.voice = voz; }
+        u.rate = (CONFIG.voz && CONFIG.voz.velocidad) || 1;
+        u.onstart = function () { clearTimeout(arranque); empezar(); };
+        u.onend = siguiente;
+        u.onerror = cerrar;
+        sintesis.speak(u);
+      }
+      siguiente();
+    }
+
+    /**
+     * Dice una respuesta { texto, audio (base64), tipo }. alEmpezar se llama cuando empieza a sonar
+     * (ahí se muestra el texto). La promesa se cumple al terminar o al interrumpir.
+     */
+    api.decir = function (datos, alEmpezar) {
+      api.detener();
+      return new Promise(function (resolver) {
+        var empezo = false, termino = false;
+        function empezar() {
+          if (empezo || termino) { return; }
+          empezo = true;
+          api.hablando = true;
+          Animacion.hablar(true);
+          estadoAvatar('hablando');
+          if (alEmpezar) { alEmpezar(); }
+        }
+        fin = function () {
+          if (termino) { return; }
+          termino = true;
+          fin = null;
+          pendiente = null;
+          api.hablando = false;
+          Animacion.hablar(false);
+          if (audio) { audio.onplaying = audio.onended = audio.onerror = null; }
+          soltarUrl();
+          if (!empezo && alEmpezar) { alEmpezar(); }   // el texto se muestra aunque no haya sonado
+          doc.body.classList.remove('pide-audio');
+          resolver();
+        };
+        var cierre = fin;
+        var respaldo = function () { if (!termino && !empezo) { hablarNavegador(datos.texto, empezar, cierre); } };
+
+        var blob = null;
+        if (datos.audio && audio) { try { blob = blobDesdeBase64(datos.audio, datos.tipo || 'audio/mpeg'); } catch (e) { blob = null; } }
+        if (!blob) { hablarNavegador(datos.texto, empezar, cierre); return; }
+
+        soltarUrl();
+        urlActual = URL.createObjectURL(blob);
+        audio.src = urlActual;
+        audio.onplaying = function () { empezar(); analizar(); };
+        audio.onended = cierre;
+        audio.onerror = respaldo;   // formato no soportado: lo lee el navegador
+        var intento = audio.play();
+        if (intento && intento.catch) {
+          intento.catch(function (error) {
+            if (termino) { return; }
+            if (error && error.name === 'NotAllowedError') {
+              // El navegador exige un toque: se muestra el texto y el botón «Activar el sonido».
+              pendiente = function () { var p = audio.play(); if (p && p.catch) { p.catch(respaldo); } };
+              if (alEmpezar) { alEmpezar(); alEmpezar = null; }
+              doc.body.classList.add('pide-audio');
+              velo('velo-audio');
+            } else {
+              respaldo();
+            }
+          });
+        }
+      });
+    };
+
+    /** Corta la voz en curso (botón «Interrumpir», nueva pregunta o fin de la conversación). */
+    api.detener = function () {
+      if (audio) { try { audio.pause(); } catch (e) { /* nada */ } }
+      if (window.speechSynthesis) { try { window.speechSynthesis.cancel(); } catch (e) { /* nada */ } }
+      if (fin) { fin(); }
+    };
+
+    /** «Activar el sonido»: reproduce el audio que el navegador había bloqueado. */
+    api.activar = function () {
+      doc.body.classList.remove('pide-audio');
+      if (pendiente) { var p = pendiente; pendiente = null; p(); }
+    };
+
+    return api;
+  })();
+
+  /* ------------------------------------------------------------------ */
+  /*  Motor económico: escucha (voz a texto)                              */
+  /* ------------------------------------------------------------------ */
+
+  var Escucha = (function () {
+    var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    var puedeGrabar = !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia && window.MediaRecorder && window.FormData);
+    var escucha = CONFIG.escucha || {};
+    // «navegador»: reconocimiento del propio navegador (gratis). «servidor»: se graba y se transcribe
+    // con ElevenLabs Scribe. Sin reconocimiento propio (Firefox), se usa el servidor si está configurado.
+    var modo = escucha.proveedor === 'servidor' && puedeGrabar ? 'servidor' : (SR ? 'navegador' : (escucha.respaldo && puedeGrabar ? 'servidor' : ''));
+    var api = { activa: false, alTexto: null, alSilencio: null, alBloqueo: null };
+    var reconocedor = null;
+    var flujoMic = null, analizadorMic = null, datosMic = null, grabadora = null, trozos = [], vigilancia = null, descartar = false;
+    var UMBRAL = 0.045;   // volumen (RMS) a partir del cual se considera que la persona habla
+
+    api.disponible = function () { return modo !== ''; };
+
+    function entregar(texto) { if (api.alTexto) { api.alTexto(texto); } }
+    function silencio() { if (api.alSilencio) { api.alSilencio(); } }
+    function bloqueo() { if (api.alBloqueo) { api.alBloqueo(); } }
+
+    /* --- Reconocimiento del navegador --- */
+    function escucharNavegador(ptt) {
+      var r = new SR();
+      var final = '';
+      r.lang = escucha.idioma || 'es-CO';
+      r.interimResults = true;
+      r.continuous = !!ptt;
+      r.maxAlternatives = 1;
+      r.onresult = function (e) {
+        var parcial = '';
+        for (var i = e.resultIndex; i < e.results.length; i++) {
+          if (e.results[i].isFinal) { final += e.results[i][0].transcript + ' '; }
+          else { parcial += e.results[i][0].transcript; }
+        }
+        Transcripcion.parcial((final + parcial).trim());
+      };
+      r.onerror = function (e) {
+        if (e.error === 'not-allowed' || e.error === 'service-not-allowed') { r.bloqueado = true; }
+        // Sin conexión con el servicio de voz del navegador: se pasa a ElevenLabs si está configurado.
+        else if (e.error === 'network' && escucha.respaldo && puedeGrabar) { modo = 'servidor'; }
+      };
+      r.onend = function () {
+        if (reconocedor === r) { reconocedor = null; }
+        api.activa = false;
+        Transcripcion.parcial('');
+        if (r.descartado) { return; }
+        if (r.bloqueado) { bloqueo(); return; }
+        var texto = final.trim();
+        if (texto) { entregar(texto); } else { silencio(); }
+      };
+      reconocedor = r;
+      api.activa = true;
+      try { r.start(); } catch (e) { reconocedor = null; api.activa = false; setTimeout(silencio, 500); }
+    }
+
+    /* --- Grabación para ElevenLabs Scribe, con detección de voz --- */
+    function prepararMic() {
+      if (flujoMic) { return Promise.resolve(); }
+      return navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } }).then(function (flujo) {
+        flujoMic = flujo;
+        if (contextoAudio) {
+          try {
+            analizadorMic = contextoAudio.createAnalyser();
+            analizadorMic.fftSize = 1024;
+            contextoAudio.createMediaStreamSource(flujo).connect(analizadorMic);
+            datosMic = new Uint8Array(analizadorMic.fftSize);
+          } catch (e) { analizadorMic = null; }
+        }
+      });
+    }
+
+    function nivelMic() {
+      if (!analizadorMic) { return 1; }   // sin análisis: se graba todo el turno
+      analizadorMic.getByteTimeDomainData(datosMic);
+      var suma = 0;
+      for (var i = 0; i < datosMic.length; i++) { var v = (datosMic[i] - 128) / 128; suma += v * v; }
+      return Math.sqrt(suma / datosMic.length);
+    }
+
+    function tipoGrabacion() {
+      var tipos = ['audio/webm;codecs=opus', 'audio/ogg;codecs=opus', 'audio/mp4', 'audio/webm'];
+      for (var i = 0; i < tipos.length; i++) { if (window.MediaRecorder.isTypeSupported && window.MediaRecorder.isTypeSupported(tipos[i])) { return tipos[i]; } }
+      return '';
+    }
+
+    function empezarGrabacion() {
+      trozos = [];
+      descartar = false;
+      var tipo = tipoGrabacion();
+      grabadora = tipo ? new window.MediaRecorder(flujoMic, { mimeType: tipo, audioBitsPerSecond: 32000 }) : new window.MediaRecorder(flujoMic);
+      grabadora.ondataavailable = function (e) { if (e.data && e.data.size) { trozos.push(e.data); } };
+      grabadora.onstop = enviarGrabacion;
+      grabadora.start();
+    }
+
+    function detenerGrabacion(sinEnviar) {
+      clearInterval(vigilancia);
+      vigilancia = null;
+      descartar = !!sinEnviar;
+      if (grabadora && grabadora.state !== 'inactive') { try { grabadora.stop(); } catch (e) { /* nada */ } }
+      else { api.activa = false; }
+    }
+
+    function enviarGrabacion() {
+      api.activa = false;
+      var tipo = grabadora && grabadora.mimeType ? grabadora.mimeType.split(';')[0] : 'audio/webm';
+      grabadora = null;
+      if (descartar) { return; }
+      var blob = new Blob(trozos, { type: tipo });
+      trozos = [];
+      if (blob.size < 2000) { silencio(); return; }
+      var conversacion = Guardado.conversacion();
+      if (!conversacion) { return; }
+      var datos = new FormData();
+      datos.append('token', CONFIG.token);
+      datos.append('codigo', conversacion.codigo);
+      datos.append('clave', conversacion.clave);
+      datos.append('audio', blob, 'pregunta');
+      estadoAvatar('pensando');
+      fetch(CONFIG.rutas.transcribir, { method: 'POST', credentials: 'same-origin', body: datos })
+        .then(function (r) { return r.json(); })
+        .then(function (r) {
+          if (r && r.ok && r.texto) { entregar(r.texto); }
+          else { if (r && r.mensaje) { avisar(r.mensaje, 5); } silencio(); }
+        })
+        .catch(function () { silencio(); });
+    }
+
+    function escucharServidor(ptt) {
+      api.activa = true;
+      prepararMic().then(function () {
+        if (!api.activa) { return; }
+        if (ptt) { empezarGrabacion(); return; }
+        var hablando = false, inicio = ahora(), inicioVoz = 0, ultimoSonido = 0;
+        vigilancia = setInterval(function () {
+          var t = ahora();
+          if (nivelMic() > UMBRAL) {
+            ultimoSonido = t;
+            if (!hablando) { hablando = true; inicioVoz = t; empezarGrabacion(); }
+          }
+          // Fin de la pregunta: 1,2 s de silencio o 20 s hablando. Sin voz en 20 s, se reinicia el ciclo.
+          if (hablando && (t - ultimoSonido > 1200 || t - inicioVoz > 20000)) { detenerGrabacion(false); }
+          else if (!hablando && t - inicio > 20000) { clearInterval(vigilancia); vigilancia = null; api.activa = false; silencio(); }
+        }, 100);
+      }).catch(function () { api.activa = false; bloqueo(); });
+    }
+
+    /** Empieza a escuchar un turno. ptt: «mantén presionado para hablar». */
+    api.escuchar = function (ptt) {
+      if (api.activa || !modo) { return; }
+      if (modo === 'navegador') { escucharNavegador(ptt); } else { escucharServidor(ptt); }
+    };
+
+    /** Fin del «mantén presionado»: se procesa lo dicho. */
+    api.soltar = function () {
+      if (reconocedor) { try { reconocedor.stop(); } catch (e) { /* nada */ } }
+      else if (grabadora) { detenerGrabacion(false); }
+      else { api.activa = false; }   // se soltó antes de tener el micrófono: no se graba nada
+    };
+
+    /** Deja de escuchar y descarta lo que se estaba oyendo (la persona escribió o el avatar habla). */
+    api.detener = function () {
+      if (reconocedor) { reconocedor.descartado = true; try { reconocedor.abort(); } catch (e) { /* nada */ } reconocedor = null; }
+      if (vigilancia || grabadora) { detenerGrabacion(true); }
+      api.activa = false;
+      Transcripcion.parcial('');
+    };
+
+    /** Al terminar la conversación también se libera el micrófono. */
+    api.apagar = function () {
+      api.detener();
+      if (flujoMic) { flujoMic.getTracks().forEach(function (t) { t.stop(); }); flujoMic = null; analizadorMic = null; }
+    };
+
+    return api;
+  })();
+
+  /* ------------------------------------------------------------------ */
+  /*  Motor económico: conversación                                       */
+  /* ------------------------------------------------------------------ */
+
+  var eco = { turno: 0, esperando: false };
+
+  function marcarMicrofono(activo) {
+    microfonoActivo = activo;
+    var boton = $('microfono');
+    if (boton && !CONFIG.avatar.pulsarHablar) { boton.setAttribute('aria-pressed', activo ? 'true' : 'false'); }
+  }
+
+  /** Vuelve a escuchar cuando el avatar calla (modo conversación con el micrófono encendido). */
+  function escucharSiToca() {
+    if (estado !== 'activa' || eco.esperando || Voz.hablando) { return; }
+    if (!microfonoActivo || CONFIG.avatar.pulsarHablar || !Escucha.disponible()) { estadoAvatar(''); return; }
+    estadoAvatar('escuchando');
+    Escucha.escuchar(false);
+  }
+
+  Escucha.alTexto = function (texto) { preguntarEconomico(texto, 'voz'); };
+  Escucha.alSilencio = function () { setTimeout(escucharSiToca, 300); };
+  Escucha.alBloqueo = function () {
+    marcarMicrofono(false);
+    estadoAvatar('');
+    avisar(CONFIG.textos.microfono || 'Pulsa el micrófono para hablar o escribe tu pregunta.', 8);
+  };
+
+  /** Muestra y dice una respuesta { texto, audio, tipo }. */
+  function decirRespuesta(datos) {
+    return Voz.decir(datos, function () { Transcripcion.avatarFinal(datos.texto); });
+  }
+
+  function conectarEconomico(datosPersona) {
+    estado = 'conectando';
+    velo('velo-cargando');
+    claseEstado('conectando');
+    Transcripcion.vaciar();
+    return enviar(CONFIG.rutas.sesion, datosPersona || {}).then(function (r) {
+      if (!r.ok) {
+        estado = 'inicio';
+        velo('velo-inicio');
+        claseEstado('inicio');
+        return r;
+      }
+      Guardado.iniciar({ codigo: r.codigo, clave: r.clave, duracion: r.duracion });
+      estado = 'activa';
+      eco.esperando = false;
+      doc.body.classList.add('en-vivo');
+      habilitarEntrada(true);
+      $('controles').hidden = !Escucha.disponible();   // sin forma de escuchar, solo se escribe
+      estadoAvatar('');
+      iniciarReloj();
+      Animacion.reanudar();
+      marcarMicrofono(!CONFIG.avatar.pulsarHablar && !!CONFIG.avatar.microfono && Escucha.disponible());
+      mantener = setInterval(function () {
+        var c = Guardado.conversacion();
+        if (c && estado === 'activa') { enviar(CONFIG.rutas.mantener, { codigo: c.codigo, clave: c.clave }).catch(function () {}); }
+      }, 60000);
+      var turno = ++eco.turno;
+      var saludo = r.saludo && r.saludo.texto ? decirRespuesta(r.saludo) : Promise.resolve();
+      saludo.then(function () { if (turno === eco.turno) { escucharSiToca(); } });
+      return { ok: true };
+    }).catch(function () {
+      terminar('error');
+      avisar('No fue posible conectar con el anfitrión. Revisa tu conexión e inténtalo de nuevo.');
+      return { ok: false };
+    });
+  }
+
+  /** Pregunta hablada o escrita → api/responder.php → texto y voz del avatar. */
+  function preguntarEconomico(texto, origen) {
+    texto = String(texto || '').trim();
+    if (!texto || estado !== 'activa') { return; }
+    if (eco.esperando) { avisar('Un momento: el anfitrión está preparando la respuesta.', 3); return; }
+    var conversacion = Guardado.conversacion();
+    if (!conversacion) { return; }
+    var turno = ++eco.turno;
+    Voz.detener();       // una pregunta nueva interrumpe la respuesta anterior
+    Escucha.detener();
+    Transcripcion.cerrarEnCurso();
+    if (origen === 'texto') { ultimoTexto = { texto: texto, hora: ahora() }; }
+    Transcripcion.persona(texto);
+    Transcripcion.avatarPensando();
+    eco.esperando = true;
+    estadoAvatar('pensando');
+    enviar(CONFIG.rutas.responder, { codigo: conversacion.codigo, clave: conversacion.clave, pregunta: texto, origen: origen })
+      .then(function (r) {
+        if (turno !== eco.turno || estado !== 'activa') { return; }
+        eco.esperando = false;
+        if (!r.ok) {
+          Transcripcion.cerrarEnCurso();
+          avisar(r.mensaje || 'El anfitrión no pudo responder. Inténtalo de nuevo.', 6);
+          if (r._estado === 409 || r.fin) { terminar('servidor'); }
+          return;
+        }
+        return decirRespuesta(r);
+      })
+      .catch(function () {
+        if (turno !== eco.turno) { return; }
+        Transcripcion.cerrarEnCurso();
+        avisar('No hay conexión con el servidor. Inténtalo de nuevo.', 6);
+      })
+      .then(function () {
+        if (turno !== eco.turno) { return; }
+        eco.esperando = false;
+        if (estado === 'activa') { estadoAvatar(''); escucharSiToca(); }
+      });
   }
 
   /* ------------------------------------------------------------------ */
@@ -912,13 +1428,32 @@
   /*  Controles                                                           */
   /* ------------------------------------------------------------------ */
 
-  /** Crea el contexto de audio dentro del gesto de la persona (requisito de Safari y Chrome). */
+  /** Un instante de silencio en WAV (para habilitar el reproductor dentro del gesto de la persona). */
+  function silencioWav() {
+    var muestras = 800, datos = new DataView(new ArrayBuffer(44 + muestras * 2));
+    var texto = function (pos, t) { for (var i = 0; i < t.length; i++) { datos.setUint8(pos + i, t.charCodeAt(i)); } };
+    texto(0, 'RIFF'); datos.setUint32(4, 36 + muestras * 2, true); texto(8, 'WAVEfmt ');
+    datos.setUint32(16, 16, true); datos.setUint16(20, 1, true); datos.setUint16(22, 1, true);
+    datos.setUint32(24, 8000, true); datos.setUint32(28, 16000, true); datos.setUint16(32, 2, true); datos.setUint16(34, 16, true);
+    texto(36, 'data'); datos.setUint32(40, muestras * 2, true);
+    return new Blob([datos], { type: 'audio/wav' });
+  }
+
+  /**
+   * Crea el contexto de audio dentro del gesto de la persona (requisito de Safari y Chrome). En el motor
+   * económico además reproduce un silencio y una lectura vacía: Safari solo deja sonar después, sin
+   * nuevo toque, un reproductor y una voz que ya se usaron dentro de un gesto.
+   */
   function desbloquearAudio() {
     try {
       if (!contextoAudio && (window.AudioContext || window.webkitAudioContext)) {
         contextoAudio = new (window.AudioContext || window.webkitAudioContext)();
       }
       if (contextoAudio && contextoAudio.state === 'suspended') { contextoAudio.resume(); }
+      if (audio && MOTOR === 'economico' && !Voz.hablando) {
+        audio.src = URL.createObjectURL(silencioWav());
+        if (window.speechSynthesis && window.SpeechSynthesisUtterance) { window.speechSynthesis.speak(new SpeechSynthesisUtterance('')); }
+      }
       if (audio) { var p = audio.play(); if (p && p.catch) { p.catch(function () {}); } }
     } catch (e) { /* sin audio web */ }
   }
@@ -948,6 +1483,12 @@
   var activarAudio = $('activar-audio');
   if (activarAudio) {
     activarAudio.addEventListener('click', function () {
+      if (MOTOR === 'economico') {
+        // Dentro del toque: reproduce la respuesta que el navegador había bloqueado.
+        if (contextoAudio && contextoAudio.state === 'suspended') { contextoAudio.resume(); }
+        Voz.activar();
+        return;
+      }
       desbloquearAudio();
       if (sala) { sala.startAudio().then(function () { doc.body.classList.remove('pide-audio'); }); }
     });
@@ -962,41 +1503,59 @@
       var etiquetaPtt = $('microfono-texto');
       etiquetaPtt.textContent = 'Mantén presionado para hablar';
       etiquetaPtt.classList.remove('solo-lectores');
+      // LiveAvatar recibe comandos por la sala; el motor económico escucha en el navegador.
+      var empezarPtt = function () {
+        if (MOTOR === 'economico') {
+          if (eco.esperando || !Escucha.disponible()) { return false; }
+          Voz.detener();
+          Escucha.escuchar(true);
+        } else {
+          if (doc.body.classList.contains('estado-hablando')) { comando('avatar.interrupt'); }
+          comando('user.start_push_to_talk');
+        }
+        botonMicrofono.classList.add('pulsado');
+        botonMicrofono.setAttribute('aria-pressed', 'true');
+        estadoAvatar('escuchando');
+        return true;
+      };
       var soltar = function () {
         if (!botonMicrofono.classList.contains('pulsado')) { return; }
         botonMicrofono.classList.remove('pulsado');
         botonMicrofono.setAttribute('aria-pressed', 'false');
-        comando('user.stop_push_to_talk');
+        if (MOTOR === 'economico') { Escucha.soltar(); } else { comando('user.stop_push_to_talk'); }
         estadoAvatar('');
       };
       botonMicrofono.addEventListener('pointerdown', function (e) {
         if (estado !== 'activa') { return; }
         e.preventDefault();
-        if (doc.body.classList.contains('estado-hablando')) { comando('avatar.interrupt'); }
-        botonMicrofono.classList.add('pulsado');
-        botonMicrofono.setAttribute('aria-pressed', 'true');
-        comando('user.start_push_to_talk');
-        estadoAvatar('escuchando');
+        empezarPtt();
       });
       ['pointerup', 'pointerleave', 'pointercancel'].forEach(function (ev) { botonMicrofono.addEventListener(ev, soltar); });
       botonMicrofono.addEventListener('keydown', function (e) {
         if ((e.key === ' ' || e.key === 'Enter') && !e.repeat && estado === 'activa' && !botonMicrofono.classList.contains('pulsado')) {
           e.preventDefault();
-          botonMicrofono.classList.add('pulsado');
-          comando('user.start_push_to_talk');
-          estadoAvatar('escuchando');
+          empezarPtt();
         }
       });
       botonMicrofono.addEventListener('keyup', function (e) { if (e.key === ' ' || e.key === 'Enter') { soltar(); } });
     } else {
       botonMicrofono.addEventListener('click', function () {
-        if (estado === 'activa') { activarMicrofono(!microfonoActivo); }
+        if (estado !== 'activa') { return; }
+        if (MOTOR === 'liveavatar') { activarMicrofono(!microfonoActivo); return; }
+        // Motor económico: el toque también sirve de gesto para que Safari permita escuchar.
+        if (!Escucha.disponible()) { avisar('Este navegador no puede escuchar. Escribe tu pregunta.', 6); return; }
+        marcarMicrofono(!microfonoActivo);
+        if (microfonoActivo) { Voz.detener(); escucharSiToca(); } else { Escucha.detener(); if (!Voz.hablando && !eco.esperando) { estadoAvatar(''); } }
       });
     }
   }
 
   var interrumpir = $('interrumpir');
-  if (interrumpir) { interrumpir.addEventListener('click', function () { comando('avatar.interrupt'); }); }
+  if (interrumpir) {
+    interrumpir.addEventListener('click', function () {
+      if (MOTOR === 'economico') { Voz.detener(); } else { comando('avatar.interrupt'); }
+    });
+  }
 
   var botonTerminar = $('terminar');
   if (botonTerminar) { botonTerminar.addEventListener('click', function () { terminar('usuario'); }); }
