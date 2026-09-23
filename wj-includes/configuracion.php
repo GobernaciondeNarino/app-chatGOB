@@ -59,28 +59,26 @@ function musa_ajustes_predeterminados() {
             'favicon'       => 'wj-includes/images/quedice/icono-quedice.png',
             'imagen_fondo'  => '',      // imagen de pantalla completa detrás de todo
             'opacidad_fondo'=> 35,      // 0 a 100: cuánto se ve la imagen de fondo
-            'logo_entidad'  => '',      // logo de la Gobernación en la franja superior
-            'mostrar_govco' => true,    // franja superior GOV.CO (manual de sitios web)
             'sitio_entidad' => 'https://www.narino.gov.co',
         ),
         'colores' => array(
-            // Paleta institucional (Manual de Identidad Visual de la Gobernación de Nariño, 2024):
-            // verde #10A13B, amarillo #FFD500 y azul #003366; los verdes de fondo se oscurecieron
-            // lo necesario para que todo el texto cumpla contraste AA (mínimo 4.5:1).
-            'fondo'             => '#0B7A2E',
-            'fondo_profundo'    => '#003366',
-            'tarjeta'           => '#0A5C2A',
-            'tarjeta_borde'     => '#10A13B',
+            // Paleta predeterminada: color principal #8F1824 con el amarillo (#FFD500) y el verde
+            // (#10A13B) del Manual de Identidad Visual como acentos. Sin azul. Contraste AA verificado
+            // en todos los pares de texto (mínimo 6.98:1).
+            'fondo'             => '#8F1824',
+            'fondo_profundo'    => '#5C0D16',
+            'tarjeta'           => '#761420',
+            'tarjeta_borde'     => '#B03A47',
             'texto'             => '#FFFFFF',
-            'texto_suave'       => '#EAF5EC',
+            'texto_suave'       => '#F6DCDF',
             'acento'            => '#FFD500',
-            'texto_sobre_acento'=> '#1A1A1A',
-            'acento_secundario' => '#4FC3F7',
+            'texto_sobre_acento'=> '#2B0A0E',
+            'acento_secundario' => '#10A13B',
             'burbuja_persona'   => '#FFFFFF',
-            'texto_persona'     => '#003366',
+            'texto_persona'     => '#8F1824',
             'exito'             => '#10A13B',
             'error'             => '#FFB3BC',
-            'institucional'     => '#003366',   // franja GOV.CO y botón de accesibilidad
+            'institucional'     => '#5C0D16',   // botón de accesibilidad
         ),
         'textos' => array(
             'titulo'            => 'Conversa sobre café',
@@ -174,6 +172,8 @@ function musa_ajustes_predeterminados() {
         'seguridad' => array(
             'limite_por_hora'     => 6,
             'limite_por_dia'      => 30,
+            'limite_global_hora'  => 120,   // conversaciones por hora sumando a todas las personas
+            'maximo_activas'      => 15,    // conversaciones abiertas al mismo tiempo (cupo de LiveAvatar)
             'exigir_aceptacion'   => true,
             'maximo_mensajes'     => 400,
             // IPs de proxys propios (balanceador, CDN) cuyas cabeceras X-Real-IP
@@ -185,6 +185,7 @@ function musa_ajustes_predeterminados() {
             'registros_por_pagina' => 25,
             'prefijo_codigo'       => 'CAFE',
             'efectos_3d'           => true,
+            'paleta_version'       => 3,      // la migración de colores ya no hace falta en instalaciones nuevas
         ),
     );
 }
@@ -222,8 +223,36 @@ function musa_ajustes($recargar = false) {
         $guardados = musa_migrar_ajustes_v1($guardados);
         musa_escribir_json(MUSA_ARCHIVO_AJUSTES, musa_combinar($predeterminados, $guardados));
     }
+    if ((int) musa_dato($guardados, 'sistema.paleta_version', 0) < 3) {
+        $guardados = musa_migrar_paleta($guardados, $predeterminados);
+        musa_escribir_json(MUSA_ARCHIVO_AJUSTES, musa_combinar($predeterminados, $guardados));
+    }
     $ajustes = musa_combinar($predeterminados, $guardados);
     return $ajustes;
+}
+
+/**
+ * Versión 2.4: la paleta predeterminada pasa a #8F1824 y se elimina el azul. Cada color guardado que
+ * coincida con el predeterminado de las versiones 2.2/2.3 (o que sea azul) toma el valor nuevo;
+ * los colores que la entidad eligió a mano no se tocan. También se retiran los ajustes de la franja GOV.CO.
+ */
+function musa_migrar_paleta($guardados, $predeterminados) {
+    $anteriores = array(
+        'fondo' => '#0B7A2E', 'fondo_profundo' => '#003366', 'tarjeta' => '#0A5C2A', 'tarjeta_borde' => '#10A13B',
+        'texto_suave' => '#EAF5EC', 'texto_sobre_acento' => '#1A1A1A', 'acento_secundario' => '#4FC3F7',
+        'texto_persona' => '#003366', 'institucional' => '#003366',
+    );
+    $azules = array('#003366', '#4FC3F7', '#12A5C4');
+    foreach ((array) musa_dato($guardados, 'colores', array()) as $clave => $valor) {
+        $valor = strtoupper((string) $valor);
+        $viejo = isset($anteriores[$clave]) && $anteriores[$clave] === $valor;
+        if (($viejo || in_array($valor, $azules, true)) && isset($predeterminados['colores'][$clave])) {
+            $guardados['colores'][$clave] = $predeterminados['colores'][$clave];
+        }
+    }
+    unset($guardados['marca']['mostrar_govco'], $guardados['marca']['logo_entidad']);
+    musa_fijar($guardados, 'sistema.paleta_version', 3);
+    return $guardados;
 }
 
 /**

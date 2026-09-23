@@ -29,19 +29,24 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
     $usuario = musa_texto(isset($_POST['usuario']) ? $_POST['usuario'] : '', 60);
     $clave = isset($_POST['clave']) ? (string) $_POST['clave'] : '';
 
-    if ($bloqueo > 0) {
-        $error = 'Demasiados intentos fallidos. Espera ' . ceil($bloqueo / 60) . ' minuto(s).';
-    } elseif (!musa_token_valido(isset($_POST['token']) ? $_POST['token'] : '')) {
+    // El intento se reserva (y cuenta como fallido) ANTES de comprobar nada secreto: así las
+    // solicitudes en paralelo no pueden colarse entre la consulta del bloqueo y su registro.
+    $espera = 0;
+    if (!musa_token_valido(isset($_POST['token']) ? $_POST['token'] : '')) {
         $error = 'La sesión expiró. Vuelve a intentarlo.';
     } elseif ($danado) {
         $error = 'El archivo de credenciales está dañado. Revisa las instrucciones de abajo.';
+    } elseif (($espera = musa_reservar_intento($ip)) > 0) {
+        $bloqueo = $espera;
+        $error = 'Demasiados intentos fallidos. Espera ' . ceil($espera / 60) . ' minuto(s).';
     } elseif ($instalar && !musa_codigo_instalacion_valido(isset($_POST['codigo']) ? $_POST['codigo'] : '')) {
-        // Un código equivocado cuenta como intento fallido: 8 seguidos bloquean la IP 15 minutos.
-        musa_registrar_intento($ip, true);
+        // Un código equivocado queda contado como intento fallido: 8 seguidos bloquean 15 minutos.
         musa_log('Código de instalación incorrecto', array('ip' => $ip));
         $error = 'El código de instalación no es correcto. Cópialo de wj-content/config/codigo-instalacion.php.';
         $bloqueo = musa_bloqueo_restante($ip);
     } elseif ($instalar) {
+        // Código correcto: los errores de aquí en adelante (contraseña débil…) no cuentan como fallos.
+        musa_registrar_intento($ip, false);
         // Primera configuración: se crea la cuenta del administrador.
         $repetir = isset($_POST['repetir']) ? (string) $_POST['repetir'] : '';
         $limpio = preg_replace('/[^A-Za-z0-9._@\-]/', '', $usuario);
@@ -55,7 +60,6 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
         } else {
             $creada = musa_htpasswd_crear_primera($limpio, $clave);
             if ($creada === 'ok') {
-                musa_registrar_intento($ip, false);
                 musa_sesion_admin_abrir($limpio);
                 musa_log('Cuenta de administrador creada en la primera configuración', array('usuario' => $limpio, 'ip' => $ip));
                 header('Location: api.php');
@@ -76,9 +80,13 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
         header('Location: index.php');
         exit;
     } else {
-        musa_registrar_intento($ip, true);
-        musa_log('Acceso fallido al panel', array('usuario' => $usuario, 'ip' => $ip));
-        $error = 'Usuario o contraseña incorrectos.';
+        // El fallo ya quedó contado al reservar el intento. En la bitácora no se guarda el usuario
+        // escrito si no existe (podría ser la contraseña tecleada en el campo equivocado).
+        $existe = isset(musa_htpasswd_leer()[$usuario]);
+        musa_log('Acceso fallido al panel', array('usuario' => $existe ? $usuario : '(desconocido)', 'ip' => $ip));
+        $error = !empty($GLOBALS['musa_clave_fabrica_detectada'])
+            ? 'Esa es la contraseña de fábrica que se publicó en el repositorio y ya no se acepta. Para restablecer el acceso, borra wj-content/config/.htpasswd.php desde el Administrador de archivos de Plesk: el panel pedirá la configuración inicial con código de instalación.'
+            : 'Usuario o contraseña incorrectos.';
         $bloqueo = musa_bloqueo_restante($ip);
     }
 }

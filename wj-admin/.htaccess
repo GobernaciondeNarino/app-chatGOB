@@ -1,14 +1,18 @@
 # QuéDice! · Panel de administración
-# El panel tiene su propio inicio de sesión (wj-admin/acceso.php).
+# El panel tiene su propio inicio de sesión (wj-admin/acceso.php) con bloqueo por intentos fallidos.
 #
-# Protección adicional opcional con usuario y contraseña de Apache:
-# quita el # de las cuatro líneas siguientes y cambia la ruta por la real
-# (el panel la muestra calculada en «Acceso → Activar la autenticación de Apache»).
+# Protección adicional opcional con usuario y contraseña de Apache: quita el # de las cuatro líneas
+# siguientes y cambia la ruta por la real (el panel la muestra calculada en «Acceso»).
+# IMPORTANTE: Apache no limita los intentos de esta autenticación; actívala solo junto con la
+# regla de Fail2Ban para Apache de Plesk (Herramientas y configuración → IP Address Banning).
 #
 # AuthType Basic
 # AuthName "Panel QueDice"
-# AuthUserFile /var/www/vhosts/TU-DOMINIO/httpdocs/wj-content/config/.htpasswd
+# AuthUserFile /var/www/vhosts/TU-DOMINIO/httpdocs/wj-content/config/.htpasswd.php
 # Require valid-user
+#
+# También puedes limitar el panel a la red de la Gobernación:
+# Require ip 190.0.0.0/24
 
 Options -Indexes
 

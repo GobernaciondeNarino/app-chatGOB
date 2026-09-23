@@ -69,6 +69,11 @@ function musa_preparar_carpetas() {
             @file_put_contents($htaccess, "Require all denied\n<IfModule !mod_authz_core.c>\nOrder allow,deny\nDeny from all\n</IfModule>\n");
         }
     }
+    // Subidas: solo imágenes con nombre generado por el panel; nada se ejecuta.
+    $subidas = MUSA_DIR_SUBIDAS . '/.htaccess';
+    if (is_dir(MUSA_DIR_SUBIDAS) && !file_exists($subidas)) {
+        @file_put_contents($subidas, "Options -Indexes\n<IfModule mod_authz_core.c>\nRequire all denied\n<FilesMatch \"(?i)^[a-z0-9-]+\\.(png|jpe?g|gif|webp)$\">\nRequire all granted\n</FilesMatch>\n</IfModule>\n");
+    }
 }
 
 /** URL base de la instalación (funciona en subcarpetas de Plesk). */
@@ -131,10 +136,12 @@ function musa_leer_json($archivo, $porDefecto = array()) {
 function musa_escribir_json($archivo, $datos) {
     $carpeta = dirname($archivo);
     if (!is_dir($carpeta)) { @mkdir($carpeta, 0775, true); }
-    $json = json_encode($datos, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    $json = json_encode($datos, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_LINE_TERMINATORS | JSON_INVALID_UTF8_SUBSTITUTE);
     if ($json === false) { return false; }
     if (substr($archivo, -4) === '.php') { $json = MUSA_GUARDIA . $json; }
-    $temporal = $archivo . '.' . getmypid() . '.tmp';
+    // Nombre aleatorio y extensión .php: si el proceso muere antes del rename, el temporal no es
+    // adivinable y, al llevar la línea de guarda, un servidor solo nginx tampoco lo muestra.
+    $temporal = $archivo . '.' . bin2hex(random_bytes(8)) . '.tmp.php';
     if (@file_put_contents($temporal, $json, LOCK_EX) === false) { return false; }
     if (!@rename($temporal, $archivo)) { @unlink($temporal); return false; }
     @chmod($archivo, 0664);
@@ -151,6 +158,20 @@ function musa_log($mensaje, $contexto = array()) {
     $archivo = MUSA_DIR_LOGS . '/musa-' . date('Y-m') . '.log.php';
     if (!file_exists($archivo)) { @file_put_contents($archivo, MUSA_GUARDIA, LOCK_EX); }
     @file_put_contents($archivo, $linea . PHP_EOL, FILE_APPEND | LOCK_EX);
+}
+
+/** Dirección web segura para un enlace: solo http(s) válidas; cualquier otra cosa (javascript:, data:…) → ''. */
+function musa_url_externa($url) {
+    $url = trim((string) $url);
+    return ($url !== '' && filter_var($url, FILTER_VALIDATE_URL) && preg_match('#^https?://[^\s/]+#i', $url)) ? $url : '';
+}
+
+/** Borra las bitácoras mensuales con más de $meses meses (retención de datos personales). */
+function musa_logs_purgar($meses = 12) {
+    $limite = date('Y-m', strtotime('-' . max(1, (int) $meses) . ' months'));
+    foreach ((array) glob(MUSA_DIR_LOGS . '/musa-*.log.php') as $archivo) {
+        if (preg_match('/musa-(\d{4}-\d{2})\.log\.php$/', (string) $archivo, $m) && $m[1] < $limite) { @unlink($archivo); }
+    }
 }
 
 /** Responde en JSON y termina la ejecución. */
@@ -176,16 +197,36 @@ function musa_cuerpo_json() {
 /** Limpia una cadena enviada por el usuario. */
 function musa_texto($valor, $maximo = 500) {
     $valor = is_scalar($valor) ? (string) $valor : '';
-    $valor = str_replace(array("\r\n", "\r"), "\n", $valor);
-    $valor = preg_replace('/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/u', '', $valor);
-    $valor = trim($valor);
+    // UTF-8 inválido: se reemplaza en vez de dejar que preg_replace devuelva null.
+    if (function_exists('mb_check_encoding') && !mb_check_encoding($valor, 'UTF-8')) {
+        $valor = mb_convert_encoding($valor, 'UTF-8', 'UTF-8');
+    }
+    $valor = str_replace(array("\r\n", "\r", "\u{2028}", "\u{2029}"), array("\n", "\n", "\n", "\n"), $valor);
+    // Controles C0/C1, bidireccionales y de ancho cero (se usan para disfrazar texto o enlaces).
+    $limpio = preg_replace('/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F\x{80}-\x{9F}\x{200B}-\x{200F}\x{202A}-\x{202E}\x{2060}-\x{2069}\x{FEFF}]/u', '', $valor);
+    $valor = trim($limpio === null ? '' : $limpio);
     if (function_exists('mb_substr')) { return mb_substr($valor, 0, $maximo, 'UTF-8'); }
     return substr($valor, 0, $maximo);
 }
 
-/** Valida un correo electrónico. */
+/**
+ * Valida un correo electrónico. Además de FILTER_VALIDATE_EMAIL exige una forma sencilla
+ * (sin ? & = % ! ni comillas): esos caracteres son válidos en el estándar, pero permiten inyectar
+ * parámetros en un enlace mailto: (cc, bcc, body) y ninguna dirección real de visitante los necesita.
+ */
 function musa_correo_valido($correo) {
-    return (bool) filter_var((string) $correo, FILTER_VALIDATE_EMAIL);
+    $correo = (string) $correo;
+    return (bool) filter_var($correo, FILTER_VALIDATE_EMAIL)
+        && (bool) preg_match('/^[A-Za-z0-9._+\-]{1,64}@[A-Za-z0-9](?:[A-Za-z0-9\-]{0,61}[A-Za-z0-9])?(?:\.[A-Za-z0-9](?:[A-Za-z0-9\-]{0,61}[A-Za-z0-9])?)+$/', $correo);
+}
+
+/**
+ * Nombre de persona o de municipio: letras (con tildes), espacios, punto, apóstrofo y guion.
+ * Deja fuera enlaces, dígitos y símbolos: el nombre se imprime en el panel y en los correos
+ * institucionales, y no debe servir para colar una dirección web.
+ */
+function musa_nombre_valido($texto) {
+    return (bool) preg_match("/^[\p{L}\p{M}][\p{L}\p{M}\s.'\-]{1,119}$/u", (string) $texto);
 }
 
 /** Convierte un texto en identificador seguro (slug). */
@@ -213,12 +254,34 @@ function musa_ip() {
     if (!is_array($confiables) || !in_array($directa, $confiables, true)) {
         return $directa;
     }
-    foreach (array('HTTP_CF_CONNECTING_IP', 'HTTP_X_REAL_IP', 'HTTP_X_FORWARDED_FOR') as $llave) {
-        if (empty($_SERVER[$llave])) { continue; }
-        $primera = trim(explode(',', (string) $_SERVER[$llave])[0]);
-        if (filter_var($primera, FILTER_VALIDATE_IP)) { return $primera; }
+    // Detrás de un proxy declarado se usa primero X-Real-IP (la escribe el nginx de Plesk) y, si no
+    // está, la entrada MÁS A LA DERECHA de X-Forwarded-For que no sea otro proxy confiable: las de la
+    // izquierda las escribe el cliente y se pueden falsificar.
+    foreach (array('HTTP_X_REAL_IP', 'HTTP_CF_CONNECTING_IP') as $llave) {
+        $valor = isset($_SERVER[$llave]) ? trim((string) $_SERVER[$llave]) : '';
+        if ($valor !== '' && filter_var($valor, FILTER_VALIDATE_IP)) { return $valor; }
+    }
+    if (!empty($_SERVER['HTTP_X_FORWARDED_FOR'])) {
+        $saltos = array_reverse(array_map('trim', explode(',', (string) $_SERVER['HTTP_X_FORWARDED_FOR'])));
+        foreach ($saltos as $salto) {
+            if (!filter_var($salto, FILTER_VALIDATE_IP)) { break; }
+            if (!in_array($salto, $confiables, true)) { return $salto; }
+        }
     }
     return $directa;
+}
+
+/**
+ * Clave para contar intentos y límites por origen: la IPv4 completa o el prefijo /64 de una IPv6
+ * (quien controla una IPv6 suele controlar todo su /64 y podría rotar direcciones sin límite).
+ */
+function musa_ip_grupo($ip = null) {
+    $ip = $ip === null ? musa_ip() : (string) $ip;
+    if (filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV6)) {
+        $binaria = @inet_pton($ip);
+        if ($binaria !== false) { return bin2hex(substr($binaria, 0, 8)) . '::/64'; }
+    }
+    return $ip;
 }
 
 /** Valida que una ruta de imagen esté dentro del proyecto y sea un archivo real. */
@@ -263,8 +326,9 @@ function musa_http($url, $opciones = array()) {
         curl_setopt($ch, CURLOPT_CUSTOMREQUEST, $metodo);
         curl_setopt($ch, CURLOPT_TIMEOUT, $tiempo);
         curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 15);
-        curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
-        curl_setopt($ch, CURLOPT_MAXREDIRS, 3);
+        // Sin redirecciones: cURL reenvía las cabeceras propias (X-API-KEY) al nuevo destino.
+        curl_setopt($ch, CURLOPT_FOLLOWLOCATION, false);
+        if (defined('CURLOPT_PROTOCOLS')) { curl_setopt($ch, CURLOPT_PROTOCOLS, CURLPROTO_HTTPS | CURLPROTO_HTTP); }
         curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
         curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 2);
         if (!empty($cabeceras)) { curl_setopt($ch, CURLOPT_HTTPHEADER, $cabeceras); }
@@ -288,8 +352,9 @@ function musa_http($url, $opciones = array()) {
             'method'        => $metodo,
             'header'        => implode("\r\n", $cabeceras),
             'content'       => $cuerpo,
-            'timeout'       => $tiempo,
-            'ignore_errors' => true,
+            'timeout'         => $tiempo,
+            'ignore_errors'   => true,
+            'follow_location' => 0,
         ),
         'ssl' => array('verify_peer' => true, 'verify_peer_name' => true),
     ));
@@ -325,47 +390,4 @@ function musa_peso($bytes) {
     if ($bytes <= 0) { return '0 KB'; }
     if ($bytes < 1024 * 1024) { return round($bytes / 1024) . ' KB'; }
     return round($bytes / (1024 * 1024), 1) . ' MB';
-}
-
-/**
- * Igual que musa_http(), pero reintenta cuando el servicio responde
- * 429 (cupo) o 5xx (saturación temporal).
- */
-function musa_http_reintento($url, $opciones = array(), $intentos = 3, $espera = 3) {
-    $respuesta = null;
-    for ($i = 0; $i < max(1, (int) $intentos); $i++) {
-        $respuesta = musa_http($url, $opciones);
-        if ($respuesta['ok']) { return $respuesta; }
-        $codigo = (int) $respuesta['codigo'];
-        $reintentable = ($codigo === 429 || $codigo === 0 || ($codigo >= 500 && $codigo < 600));
-        if (!$reintentable || $i === $intentos - 1) { return $respuesta; }
-        sleep($espera * ($i + 1));
-    }
-    return $respuesta;
-}
-
-/**
- * Límite sencillo de uso por IP guardado en wj-content/logs.
- * Devuelve true si se superó el límite en la última hora.
- */
-function musa_limite_uso($clave, $ip, $maximo) {
-    if ($maximo <= 0) { return false; }
-    $archivo = MUSA_DIR_LOGS . '/uso-' . musa_slug($clave) . '.json.php';
-    $datos = musa_leer_json($archivo, array());
-    $ahora = time();
-    foreach ($datos as $llave => $marcas) {
-        $datos[$llave] = array_values(array_filter((array) $marcas, function ($m) use ($ahora) {
-            return (int) $m > $ahora - 3600;
-        }));
-        if ($datos[$llave] === array()) { unset($datos[$llave]); }
-    }
-    $propias = isset($datos[$ip]) ? $datos[$ip] : array();
-    if (count($propias) >= $maximo) {
-        musa_escribir_json($archivo, $datos);
-        return true;
-    }
-    $propias[] = $ahora;
-    $datos[$ip] = $propias;
-    musa_escribir_json($archivo, $datos);
-    return false;
 }

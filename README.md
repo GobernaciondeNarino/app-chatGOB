@@ -16,7 +16,7 @@ formulario de inicio.
 
 | Parte | Descripción |
 |---|---|
-| **Interfaz pública** (`index.php`) | Un solo contenedor `div#app` de 100 % de ancho y 100vh de alto, **sin scroll**. Avatar en video en el centro, escena 3D con **three.js** (granos de café, vapor y un aura que reacciona a la voz del avatar) y abajo el panel con la transcripción en vivo, preguntas escritas y sugeridas, micrófono, interrumpir y terminar. Franja GOV.CO y botón de accesibilidad (texto grande y alto contraste). |
+| **Interfaz pública** (`index.php`) | Un solo contenedor `div#app` de 100 % de ancho y 100vh de alto, **sin scroll**. Avatar en video en el centro, escena 3D con **three.js** (granos de café, vapor y un aura que reacciona a la voz del avatar) y abajo el panel con la transcripción en vivo, preguntas escritas y sugeridas, micrófono, interrumpir y terminar. Botón de accesibilidad (texto grande y alto contraste). |
 | **Formulario de inicio** | Opcional: nombre, correo, municipio (lista de los 64 municipios de Nariño o texto libre), teléfono y autorización de datos (Ley 1581). Se activa o desactiva y se eligen sus campos desde el panel. |
 | **Panel** (`wj-admin/`) | Conversaciones con todas las preguntas y respuestas, casillas **Creado** y **Enviado**, exportación CSV/JSON, avatar y tema, API de HeyGen con verificación, apariencia, correo y credenciales. |
 | **Núcleo** (`wj-includes/`) | Configuración, almacenamiento JSON, seguridad, correo, cliente de HeyGen LiveAvatar y la API pública. |
@@ -38,7 +38,14 @@ y su especificación [openapi.json](https://docs.liveavatar.com/openapi.json), y
 [Introducing LiveAvatar](https://help.heygen.com/en/articles/12758516-introducing-liveavatar).
 HeyGen no publica en esas páginas una fecha exacta de cierre de la API anterior.
 
-- **La clave, el avatar y la voz deben ser de LiveAvatar** (`app.liveavatar.com`). Según HeyGen,
+- **La clave debe ser de LiveAvatar:** se crea en
+  [app.liveavatar.com/developers](https://app.liveavatar.com/developers), con su propia cuenta.
+  La clave de la API de videos de HeyGen (app.heygen.com, la que se verifica con
+  `GET api.heygen.com/v3/users/me`) **no sirve**: la documentación de HeyGen remite los avatares en
+  tiempo real a LiveAvatar y la API anterior ya no existe (`POST api.heygen.com/v1/streaming.new`
+  responde 404, comprobado en septiembre de 2026). Si se pega una clave de HeyGen, «Verificar
+  todo» lo detecta y lo indica.
+- **El avatar y la voz también deben ser de LiveAvatar** (`app.liveavatar.com`). Según HeyGen,
   los avatares creados en HeyGen no son compatibles directamente con LiveAvatar: se migran con
   su ayuda y pueden quedar con otro ID.
 - Los ID configurados de fábrica son los entregados para este proyecto:
@@ -89,12 +96,15 @@ HeyGen no publica en esas páginas una fecha exacta de cierre de la API anterior
    *Plesk → Administrador de archivos* y cópialo (la web no entrega ese archivo). Así solo puede
    crear la cuenta quien tiene acceso al servidor. Luego escribe el usuario y una contraseña de al
    menos 10 caracteres con letras y números. Se guarda cifrada con bcrypt en
-   `wj-content/config/.htpasswd` (fuera del repositorio) y el código se borra. No hay contraseña
-   de fábrica.
+   `wj-content/config/.htpasswd.php` (fuera del repositorio) y el código se borra. No hay
+   contraseña de fábrica.
 
-   > Si una instalación anterior usaba la contraseña de fábrica que publicaba la versión previa de
-   > este README, cámbiala en *Acceso → Usuario y contraseña*: las credenciales de
-   > `wj-admin/.htpasswd` se trasladan solas a `wj-content/config/.htpasswd`.
+   > **Instalaciones anteriores:** la versión 1 de este README publicó una contraseña de fábrica y
+   > el repositorio es público, así que esa contraseña está **quemada**: el panel la rechaza siempre.
+   > Si tu servidor la usaba, al intentarla el panel explica cómo restablecer el acceso (borrar
+   > `wj-content/config/.htpasswd.php` desde Plesk y repetir la configuración inicial). Las
+   > credenciales de `wj-admin/.htpasswd` o `wj-content/config/.htpasswd` se trasladan solas al
+   > archivo nuevo y el archivo viejo se borra.
 
 7. En **API HeyGen** pulsa **Verificar todo** (créditos, avatar y voz) y luego **Prueba de
    sesión** (valida avatar, voz, idioma y contexto sin consumir créditos).
@@ -131,16 +141,16 @@ HeyGen no publica en esas páginas una fecha exacta de cierre de la API anterior
 | **Ver mis avatares y voces** | Lista los avatares y voces de la cuenta con sus ID. | No |
 
 ### Apariencia y formulario
-- **Identidad:** nombre, eslogan, entidad, sitio de la entidad y la **franja GOV.CO** superior
-  (activable), como pide el manual de sitios web de la Gobernación.
+- **Identidad:** nombre, eslogan, entidad y sitio de la entidad (enlace del pie de página).
 - **Imágenes y logos:** imagen del avatar (se ve mientras conecta), logo, **imagen de fondo de
-  pantalla completa** con control de visibilidad (0-100 %), decoraciones de esquina y lateral,
-  logo de la entidad para la franja GOV.CO y favicon. Puedes elegir una existente o subir una nueva
+  pantalla completa** con control de visibilidad (0-100 %), decoraciones de esquina y lateral
+  y favicon. Puedes elegir una existente o subir una nueva
   (`wj-content/subidas`, máximo 5 MB).
-- **Colores:** catorce colores con selector visual y dos paletas en un clic:
-  **Institucional Gobernación de Nariño** (verde #10A13B, amarillo #FFD500, azul #003366 del
-  Manual de Identidad Visual 2024, con los verdes ajustados para cumplir contraste AA;
-  predeterminada) y **Café** (rojo y dorado).
+- **Colores:** catorce colores con selector visual y tres paletas en un clic: **Predeterminada**
+  (color principal #8F1824, con el amarillo #FFD500 y el verde #10A13B del Manual de Identidad
+  Visual como acentos), **Verde institucional** y **Café** (rojo y dorado). Todas cumplen contraste
+  AA. Al actualizar, los colores que seguían con los valores predeterminados anteriores (y cualquier
+  azul) pasan solos a la paleta #8F1824; los que elegiste a mano se respetan.
 - **Formulario de inicio:** activarlo o no («saber con quién se habla») y qué campos pedir
   (correo, municipio, teléfono) y cuáles son obligatorios. El municipio puede elegirse de la
   **lista de los 64 municipios de Nariño** (con «Otro municipio» opcional) o escribirse libre.
@@ -176,27 +186,70 @@ pregunta) o **JSON**.
 
 ## 6. Seguridad
 
-- `.htaccess` incluidos: en la raíz (sin listado de carpetas; bloquea `.md`, `.json`, `.log` y
-  archivos ocultos), en `wj-admin` (autenticación de Apache opcional) y en `wj-content` (por la web
-  solo se sirven imágenes; ningún script se ejecuta desde allí).
-- La clave de LiveAvatar vive solo en el servidor; al navegador llega un token temporal de sala.
+Auditoría estática de septiembre de 2026 (código propio, sin pruebas contra el servidor en
+producción): los hallazgos se corrigieron y se verificaron con pruebas automatizadas. El informe
+detallado (TLP:AMBER) se entrega aparte y **no** se publica en este repositorio.
+
+**Acceso al panel**
 - Primera cuenta solo con el código de instalación de un solo uso (legible únicamente desde el
-  servidor), creada de forma atómica. Si `.htpasswd` existe pero está dañado, el panel queda
-  cerrado en lugar de ofrecer otra cuenta. Cambiar la contraseña cierra las demás sesiones.
-- Panel protegido con bcrypt (`wj-content/config/.htpasswd`), bloqueo tras 8 intentos fallidos, cierre por
-  inactividad (2 horas) y token CSRF en todas las acciones.
-- La API pública exige token CSRF y, para cada conversación, una clave aleatoria propia.
-- Límite de conversaciones por hora y por día (por IP o correo) para proteger los créditos,
-  campo trampa antirrobots y máximo de mensajes por conversación.
-- Los archivos de datos empiezan con una línea PHP que responde 403: aunque el servidor no aplique
-  `.htaccess`, nunca muestran su contenido por la web.
-- La exportación CSV neutraliza los valores que empiezan por `=`, `+`, `-` o `@`.
-- Si el sitio está detrás de un balanceador o CDN, agrega su IP en
-  `seguridad.proxies_confiables` para leer la IP real del visitante.
+  servidor), creada de forma atómica. Si el archivo de credenciales existe pero está dañado, el
+  panel queda cerrado en lugar de ofrecer otra cuenta.
+- Credenciales en `wj-content/config/.htpasswd.php`: formato de Apache con la primera línea
+  `#<?php http_response_code(403); exit; ?>` (comentario para Apache, bloqueo para PHP). Solo se
+  aceptan hashes bcrypt o APR1 (este se convierte a bcrypt al entrar); nunca texto plano.
+- Bloqueo por intentos: 8 fallos por IP (o por bloque /64 de IPv6) y 40 en total cada 15 minutos.
+  El intento se cuenta antes de comprobar la contraseña, así las solicitudes en paralelo no se
+  cuelan. El tiempo de respuesta es el mismo exista o no el usuario.
+- Sesión: cookie `HttpOnly`/`SameSite=Lax` (y `Secure` en HTTPS), modo estricto, identificador y
+  token CSRF nuevos al entrar, cierre por inactividad (2 horas), cambio de contraseña que cierra
+  las demás sesiones y salida por POST con token. Todas las acciones del panel van por POST con
+  token CSRF (la exportación es la única lectura por GET).
+
+**Sitio público y API**
+- La clave de LiveAvatar vive solo en el servidor; al navegador llega un token temporal de sala.
+  El endpoint solo puede ser `https://api.liveavatar.com` (o `localhost` para pruebas) y las
+  peticiones no siguen redirecciones (la clave no viaja a otro servidor).
+- Límites comprobados de forma atómica: conversaciones por IP (o /64) por hora y por día, total
+  por hora y conversaciones abiertas al mismo tiempo (configurables en *Apariencia → Sistema y
+  límites*). Keep-alive como máximo cada 25 s. Las sesiones sin actividad se cierran a los 3 minutos.
+- Topes de tamaño: 1 000 caracteres por pregunta, 2 000 por respuesta y 64 KB por conversación.
+  Si el archivo de conversaciones llega a 16 MB, el sitio deja de aceptar conversaciones y el
+  panel ofrece **archivar** las antiguas (`wj-content/datos/archivo-*.json.php`).
+- La transcripción oficial de LiveAvatar es la fuente de verdad: al cerrar, las respuestas del
+  avatar que envió el navegador se reemplazan por las oficiales. Si no hay transcripción oficial,
+  el panel las marca «sin verificar» y **no** se incluyen en el correo. El correo institucional
+  nunca lleva enlaces escritos por el visitante, y su nombre solo admite letras.
+- Cabeceras: Content-Security-Policy con *nonce* (sin JavaScript en línea en el panel),
+  Strict-Transport-Security en HTTPS, `X-Frame-Options`, `nosniff`, `Referrer-Policy`,
+  `Cross-Origin-Opener-Policy` y `Permissions-Policy` (micrófono solo en la página del avatar).
+- En un kiosco compartido, los datos de la persona se borran al terminar y la transcripción a los
+  90 segundos; el formulario no usa autocompletado.
+
+**Archivos y servidor**
+- `.htaccess` incluidos: raíz (sin listado de carpetas; bloquea `.git/` y todo lo que empiece por
+  punto, `.md`, `.json`, `.log`, respaldos y temporales), `wj-admin` (autenticación de Apache
+  opcional), `wj-content` (nada se sirve) y `wj-content/subidas` (solo imágenes).
+- Los archivos de datos, los temporales y las credenciales llevan una línea PHP que responde 403.
+- `.gitignore` en modo lista blanca: de `wj-content` solo se versionan las reglas y los ejemplos.
+- Las bitácoras no guardan correos de visitantes y se borran a los 12 meses. `claves.php` solo se
+  usa en el primer arranque; el panel avisa si sigue en el servidor para que lo borres.
 
 > **Datos personales:** el formulario pide autorización explícita conforme a la Ley 1581 de 2012.
-> Las conversaciones contienen datos personales y lo que la persona dijo: haz copias de seguridad
-> y trátalas según la política de la entidad. Informa en el sitio que la conversación se transcribe.
+> Las conversaciones contienen datos personales y lo que la persona dijo: haz copias de seguridad,
+> archiva las antiguas y trátalas según la política de la entidad. Informa en el sitio que la
+> conversación se transcribe.
+
+### Si el servidor usa solo nginx (sin Apache)
+Los `.htaccess` no se aplican. Los datos siguen protegidos por la línea PHP, pero agrega en
+*Plesk → Configuración de Apache y nginx → Directivas adicionales de nginx*:
+
+```nginx
+location ~ /\.(?!well-known/) { deny all; }
+location ~ ^/wj-content/(config|datos|logs)/ { deny all; }
+location ~* \.(md|tmp|lock|log|bak|json)$ { deny all; }
+```
+
+Lo recomendado es dejar el modo proxy de Plesk (Apache detrás de nginx) activado.
 
 ### Contraseña del panel con Apache (.htaccess)
 Para que además el navegador pida usuario y contraseña, quita el comentario de estas líneas en
@@ -205,9 +258,12 @@ Para que además el navegador pida usuario y contraseña, quita el comentario de
 ```apache
 AuthType Basic
 AuthName "Panel QueDice"
-AuthUserFile /var/www/vhosts/TU-DOMINIO/httpdocs/wj-content/config/.htpasswd
+AuthUserFile /var/www/vhosts/TU-DOMINIO/httpdocs/wj-content/config/.htpasswd.php
 Require valid-user
 ```
+
+Apache no limita los intentos de esta autenticación: actívala solo junto con **Fail2Ban** de
+Plesk (*Herramientas y configuración → Bloqueo de direcciones IP*, cárcel de Apache).
 
 ---
 
@@ -219,7 +275,9 @@ Require valid-user
 | Actualizar desde el repositorio | `git pull`. Tus ajustes y conversaciones no se sobrescriben: están en archivos ignorados por git. |
 | Revisar errores | Bitácora mensual en `wj-content/logs/`. |
 | Diagnóstico del servidor | *Panel → Acceso → Estado de la instalación* (PHP, cURL, HTTPS, permisos). |
-| Conversaciones que quedaron abiertas | Se cierran solas al abrir el panel, pasada la duración máxima. |
+| Conversaciones que quedaron abiertas | Se cierran solas (sin actividad 3 minutos o pasada la duración máxima). |
+| Archivo de conversaciones grande | *Conversaciones → Archivar* mueve las cerradas antiguas a `wj-content/datos/archivo-*.json.php`. |
+| Actualizar con git | Mejor con la extensión Git de Plesk y ruta de despliegue (así `.git` no queda en `httpdocs`). |
 
 ---
 
@@ -263,9 +321,9 @@ wj-includes/
 
 wj-content/                   Única carpeta escribible (sus datos no se suben al repositorio)
   .htaccess                   Solo imágenes por la web
-  config/                     Ajustes vigentes, .htpasswd, ejemplo y claves.php (opcional)
+  config/                     Ajustes, credenciales (.htpasswd.php), ejemplos y claves.php (opcional)
   datos/                      conversaciones.json.php
-  subidas/                    Imágenes cargadas desde el panel
+  subidas/                    Imágenes cargadas desde el panel (.htaccess: solo imágenes)
   logs/                       Bitácoras mensuales
 ```
 
@@ -286,4 +344,4 @@ movimiento y transparencia reducidos). Ninguna es necesaria en el servidor.
 
 ---
 
-Gobernación de Nariño · QuéDice! · versión 2.2.0
+Gobernación de Nariño · QuéDice! · versión 2.4.0

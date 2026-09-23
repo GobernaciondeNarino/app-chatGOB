@@ -29,8 +29,10 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
         musa_fijar($nuevos, 'correo.mensaje', musa_texto($_POST['correo']['mensaje'] ?? '', 4000));
         musa_fijar($nuevos, 'correo.incluir_conversacion', !empty($_POST['correo']['incluir_conversacion']));
 
-        musa_fijar($nuevos, 'correo.smtp.host', musa_texto($_POST['correo']['smtp']['host'] ?? '', 160));
-        musa_fijar($nuevos, 'correo.smtp.puerto', max(1, min(65535, (int) ($_POST['correo']['smtp']['puerto'] ?? 587))));
+        $hostSmtp = strtolower(musa_texto($_POST['correo']['smtp']['host'] ?? '', 160));
+        musa_fijar($nuevos, 'correo.smtp.host', ($hostSmtp === '' || musa_smtp_host_valido($hostSmtp)) ? $hostSmtp : '');
+        $puertoSmtp = (int) ($_POST['correo']['smtp']['puerto'] ?? 587);
+        musa_fijar($nuevos, 'correo.smtp.puerto', in_array($puertoSmtp, array(25, 465, 587, 2525), true) ? $puertoSmtp : 587);
         $seguridad = musa_texto($_POST['correo']['smtp']['seguridad'] ?? 'tls', 10);
         musa_fijar($nuevos, 'correo.smtp.seguridad', in_array($seguridad, array('tls', 'ssl', 'ninguna'), true) ? $seguridad : 'tls');
         musa_fijar($nuevos, 'correo.smtp.usuario', musa_texto($_POST['correo']['smtp']['usuario'] ?? '', 160));
@@ -100,7 +102,7 @@ musa_panel_mensaje();
   <h2>Servidor SMTP</h2>
   <div class="rejilla">
     <label>Host<input type="text" name="correo[smtp][host]" value="<?php echo musa_e(musa_dato($ajustesPanel, 'correo.smtp.host', '')); ?>" placeholder="smtp.narino.gov.co"></label>
-    <label>Puerto<input type="number" name="correo[smtp][puerto]" min="1" max="65535" value="<?php echo (int) musa_dato($ajustesPanel, 'correo.smtp.puerto', 587); ?>"></label>
+    <label>Puerto<input type="number" name="correo[smtp][puerto]" min="25" max="2525" title="25, 465, 587 o 2525" value="<?php echo (int) musa_dato($ajustesPanel, 'correo.smtp.puerto', 587); ?>"></label>
     <label>Seguridad
       <select name="correo[smtp][seguridad]">
         <?php foreach (array('tls' => 'STARTTLS (587)', 'ssl' => 'SSL/TLS (465)', 'ninguna' => 'Sin cifrado (25)') as $valor => $etiqueta) : ?>

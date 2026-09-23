@@ -12,25 +12,23 @@
         "favicon": "wj-includes/images/quedice/icono-quedice.png",
         "imagen_fondo": "",
         "opacidad_fondo": 35,
-        "logo_entidad": "",
-        "mostrar_govco": true,
         "sitio_entidad": "https://www.narino.gov.co"
     },
     "colores": {
-        "fondo": "#0B7A2E",
-        "fondo_profundo": "#003366",
-        "tarjeta": "#0A5C2A",
-        "tarjeta_borde": "#10A13B",
+        "fondo": "#8F1824",
+        "fondo_profundo": "#5C0D16",
+        "tarjeta": "#761420",
+        "tarjeta_borde": "#B03A47",
         "texto": "#FFFFFF",
-        "texto_suave": "#EAF5EC",
+        "texto_suave": "#F6DCDF",
         "acento": "#FFD500",
-        "texto_sobre_acento": "#1A1A1A",
-        "acento_secundario": "#4FC3F7",
+        "texto_sobre_acento": "#2B0A0E",
+        "acento_secundario": "#10A13B",
         "burbuja_persona": "#FFFFFF",
-        "texto_persona": "#003366",
+        "texto_persona": "#8F1824",
         "exito": "#10A13B",
         "error": "#FFB3BC",
-        "institucional": "#003366"
+        "institucional": "#5C0D16"
     },
     "textos": {
         "titulo": "Conversa sobre café",
@@ -120,6 +118,8 @@
     "seguridad": {
         "limite_por_hora": 6,
         "limite_por_dia": 30,
+        "limite_global_hora": 120,
+        "maximo_activas": 15,
         "exigir_aceptacion": true,
         "maximo_mensajes": 400,
         "proxies_confiables": []
@@ -128,6 +128,7 @@
         "zona_horaria": "America/Bogota",
         "registros_por_pagina": 25,
         "prefijo_codigo": "CAFE",
-        "efectos_3d": true
+        "efectos_3d": true,
+        "paleta_version": 3
     }
 }

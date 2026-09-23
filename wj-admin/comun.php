@@ -42,7 +42,7 @@ function musa_panel_inicio($titulo, $activo = 'registros') {
   <div class="barra-acciones">
     <a class="boton-linea" href="<?php echo musa_e(musa_url('')); ?>" target="_blank" rel="noopener">Ver sitio</a>
     <span class="usuario"><?php echo musa_e($usuarioActual); ?></span>
-    <a class="boton-linea" href="salir.php">Salir</a>
+    <form method="post" action="salir.php" class="en-linea"><?php musa_campo_token(); ?><button type="submit" class="boton-linea">Salir</button></form>
   </div>
 </header>
 <nav class="menu" aria-label="Secciones del panel">

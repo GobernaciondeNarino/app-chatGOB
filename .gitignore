@@ -1,16 +1,30 @@
-# Musa Café · Datos de cada instalación (no se suben al repositorio)
-# Así `git pull` en Plesk nunca pisa ajustes, conversaciones ni claves.
+# QuéDice! · Lo que es propio de cada instalación no se sube al repositorio:
+# así «git pull» en Plesk nunca pisa ajustes, credenciales ni conversaciones.
 
-wj-content/config/ajustes.json.php
-wj-content/config/claves.php
-wj-content/config/.htpasswd
-wj-content/config/codigo-instalacion.php
-wj-content/config/credenciales.lock
-wj-content/config/*.tmp
-wj-content/datos/
-wj-content/subidas/
-wj-content/logs/
-wj-admin/.htpasswd
+# wj-content: solo se versionan las reglas y los ejemplos
+wj-content/*
+!wj-content/.htaccess
+!wj-content/config/
+wj-content/config/*
+!wj-content/config/.htaccess
+!wj-content/config/ajustes.ejemplo.json.php
+!wj-content/config/claves.ejemplo.php
+!wj-content/config/.htpasswd.ejemplo
+!wj-content/subidas/
+wj-content/subidas/*
+!wj-content/subidas/.htaccess
+
+# Credenciales y copias en cualquier lugar
+**/.htpasswd
+**/.htpasswd.php
+*.bak
+*.old
+*.orig
+*~
+*.swp
+*.tmp
+*.tmp.php
+.env
 
 # Herramientas de desarrollo (se instalan fuera del proyecto)
 graphify-out/

@@ -33,7 +33,7 @@ function musa_correo_cabecera($texto) {
 /** Arma el cuerpo HTML del correo con la identidad de QuéDice!. */
 function musa_correo_html($c, $ajustes) {
     $colores = musa_dato($ajustes, 'colores', array());
-    $fondo   = musa_color(musa_dato($colores, 'fondo', '#0B7A2E'), '#0B7A2E');
+    $fondo   = musa_color(musa_dato($colores, 'fondo', '#8F1824'), '#8F1824');
     $texto   = musa_color(musa_dato($colores, 'texto', '#FFFFFF'), '#FFFFFF');
     $acento  = musa_color(musa_dato($colores, 'acento', '#FFD500'), '#FFD500');
     $marca   = musa_dato($ajustes, 'marca.nombre', 'QuéDice!');
@@ -87,6 +87,9 @@ function musa_correo_enviar($c, $ajustes = null) {
         return array('ok' => false, 'mensaje' => 'La conversación no tiene un correo válido.');
     }
 
+    // El correo sale con la identidad de la Gobernación hacia una dirección que escribió el visitante:
+    // solo lleva respuestas del avatar verificadas con LiveAvatar y ningún enlace escrito por él.
+    $c = musa_conversacion_para_correo($c);
     $asunto = musa_correo_plantilla(musa_dato($ajustes, 'correo.asunto', 'Tu conversación en QuéDice!'), $c, $ajustes);
     $html = musa_correo_html($c, $ajustes);
     $textoPlano = musa_correo_plantilla(musa_dato($ajustes, 'correo.mensaje', ''), $c, $ajustes);
@@ -108,12 +111,14 @@ function musa_correo_enviar($c, $ajustes = null) {
     );
     $responder = musa_dato($ajustes, 'correo.responder_a', '');
     if (musa_correo_valido($responder)) { $cabeceras[] = 'Reply-To: ' . $responder; }
-    $copia = musa_dato($ajustes, 'correo.copia_oculta', '');
-    if (musa_correo_valido($copia)) { $cabeceras[] = 'Bcc: ' . $copia; }
+    $copia = (string) musa_dato($ajustes, 'correo.copia_oculta', '');
+    if (!musa_correo_valido($copia)) { $copia = ''; }
 
     if ($metodo === 'smtp') {
-        $resultado = musa_correo_smtp($destino, $asunto, $mensaje, $cabeceras, $ajustes);
+        // En SMTP la copia oculta va solo como destinatario del sobre (RCPT TO), nunca como cabecera.
+        $resultado = musa_correo_smtp($destino, $asunto, $mensaje, $cabeceras, $ajustes, $copia);
     } else {
+        if ($copia !== '') { $cabeceras[] = 'Bcc: ' . $copia; }   // mail() la retira antes de entregar
         $enviado = @mail($destino, musa_correo_cabecera($asunto), $mensaje, implode("\r\n", $cabeceras), '-f' . $remitente);
         $resultado = array(
             'ok' => (bool) $enviado,
@@ -121,10 +126,16 @@ function musa_correo_enviar($c, $ajustes = null) {
         );
     }
 
+    // La bitácora no guarda la dirección del destinatario (dato personal): el código basta para ubicarlo.
     musa_log($resultado['ok'] ? 'Correo enviado' : 'Fallo al enviar correo', array(
-        'codigo' => $c['codigo'] ?? '', 'destino' => $destino, 'metodo' => $metodo, 'detalle' => $resultado['mensaje'],
+        'codigo' => $c['codigo'] ?? '', 'metodo' => $metodo, 'detalle' => $resultado['mensaje'],
     ));
     return $resultado;
+}
+
+/** Nombre de host SMTP válido (sin esquemas como udp:// ni rutas): letras, números, puntos y guiones. */
+function musa_smtp_host_valido($host) {
+    return (bool) preg_match('/^(?=.{1,253}$)[A-Za-z0-9](?:[A-Za-z0-9\-]{0,61}[A-Za-z0-9])?(?:\.[A-Za-z0-9](?:[A-Za-z0-9\-]{0,61}[A-Za-z0-9])?)*$/', (string) $host);
 }
 
 /** Construye el cuerpo MIME (texto + HTML + adjunto opcional). */
@@ -158,7 +169,7 @@ function musa_correo_construir($html, $texto, $adjunto, &$limite) {
 }
 
 /** Envío por SMTP con autenticación (sin dependencias externas). */
-function musa_correo_smtp($destino, $asunto, $mensaje, $cabeceras, $ajustes) {
+function musa_correo_smtp($destino, $asunto, $mensaje, $cabeceras, $ajustes, $copia = '') {
     $host = musa_dato($ajustes, 'correo.smtp.host', '');
     $puerto = (int) musa_dato($ajustes, 'correo.smtp.puerto', 587);
     $seguridad = musa_dato($ajustes, 'correo.smtp.seguridad', 'tls');
@@ -167,6 +178,9 @@ function musa_correo_smtp($destino, $asunto, $mensaje, $cabeceras, $ajustes) {
     $remitente = musa_dato($ajustes, 'correo.remitente', '');
 
     if ($host === '') { return array('ok' => false, 'mensaje' => 'Falta configurar el servidor SMTP.'); }
+    if (!musa_smtp_host_valido($host) || !in_array($puerto, array(25, 465, 587, 2525), true)) {
+        return array('ok' => false, 'mensaje' => 'El servidor SMTP o el puerto configurado no son válidos.');
+    }
 
     $prefijo = ($seguridad === 'ssl') ? 'ssl://' : '';
     $conexion = @stream_socket_client($prefijo . $host . ':' . $puerto, $errorNum, $errorMsg, 20);
@@ -219,6 +233,10 @@ function musa_correo_smtp($destino, $asunto, $mensaje, $cabeceras, $ajustes) {
     if ($codigo($respuesta) !== 250) { fclose($conexion); return array('ok' => false, 'mensaje' => 'Remitente rechazado: ' . trim($respuesta)); }
     $respuesta = $enviar('RCPT TO:<' . $destino . '>');
     if ($codigo($respuesta) !== 250 && $codigo($respuesta) !== 251) { fclose($conexion); return array('ok' => false, 'mensaje' => 'Destinatario rechazado: ' . trim($respuesta)); }
+    if ($copia !== '') {
+        $respuesta = $enviar('RCPT TO:<' . $copia . '>');
+        if ($codigo($respuesta) !== 250 && $codigo($respuesta) !== 251) { musa_log('La copia oculta fue rechazada por el servidor SMTP'); }
+    }
 
     $respuesta = $enviar('DATA');
     if ($codigo($respuesta) !== 354) { fclose($conexion); return array('ok' => false, 'mensaje' => 'DATA rechazado: ' . trim($respuesta)); }

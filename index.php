@@ -8,7 +8,8 @@
  */
 require_once __DIR__ . '/wj-includes/arranque.php';
 
-musa_cabeceras_seguridad(true);
+musa_cabeceras_seguridad('publica');
+$nonce = musa_nonce();
 musa_sesion();
 
 $ajustes = musa_ajustes();
@@ -34,7 +35,6 @@ $logo        = $imagen(musa_dato($marca, 'logo', ''), 'wj-includes/images/quedic
 $rama        = $imagen(musa_dato($marca, 'fondo', ''));
 $barra       = $imagen(musa_dato($marca, 'barra', ''));
 $fondo       = $imagen(musa_dato($marca, 'imagen_fondo', ''));
-$logoEntidad = $imagen(musa_dato($marca, 'logo_entidad', ''));
 $favicon     = $imagen(musa_dato($marca, 'favicon', ''), 'wj-includes/images/quedice/icono-quedice.png');
 $retrato     = $imagen(musa_dato($avatar, 'retrato', ''), 'wj-includes/images/avatar/avatar-cafe.webp');
 
@@ -44,9 +44,8 @@ $permitirEscribir = !empty(musa_dato($avatar, 'permitir_escribir', true));
 $sugerencias      = musa_sugerencias($ajustes);
 $nombreAvatar     = (string) musa_dato($avatar, 'nombre', 'Anfitrión');
 $disponible       = musa_heygen_configurado($ajustes);
-$mostrarGovco     = !empty(musa_dato($marca, 'mostrar_govco', true));
 $entidad          = (string) musa_dato($marca, 'entidad', 'Gobernación de Nariño');
-$sitioEntidad     = (string) musa_dato($marca, 'sitio_entidad', '');
+$sitioEntidad     = musa_url_externa(musa_dato($marca, 'sitio_entidad', ''));
 $opacidadFondo    = max(0, min(100, (int) musa_dato($marca, 'opacidad_fondo', 35))) / 100;
 $formatos         = array('3/4' => '3 / 4', '1/1' => '1 / 1', '16/9' => '16 / 9', '9/16' => '9 / 16');
 $formato          = (string) musa_dato($avatar, 'formato', '3/4');
@@ -66,11 +65,11 @@ $configJs = array(
         'pulsarHablar' => musa_dato($avatar, 'interactividad', 'CONVERSATIONAL') === 'PUSH_TO_TALK',
     ),
     'colores'          => array(
-        'fondo'    => $c('fondo', '#0B7A2E'),
-        'profundo' => $c('fondo_profundo', '#003366'),
+        'fondo'    => $c('fondo', '#8F1824'),
+        'profundo' => $c('fondo_profundo', '#5C0D16'),
         'texto'    => $c('texto', '#FFFFFF'),
         'acento'   => $c('acento', '#FFD500'),
-        'acento2'  => $c('acento_secundario', '#4FC3F7'),
+        'acento2'  => $c('acento_secundario', '#10A13B'),
     ),
     'textos'           => array(
         'conectando' => $t('conectando', 'Preparando al anfitrión…'),
@@ -88,26 +87,28 @@ $configJs = array(
 );
 
 $css = array(
-    '--musa-fondo'             => $c('fondo', '#0B7A2E'),
-    '--musa-fondo-profundo'    => $c('fondo_profundo', '#003366'),
-    '--musa-fondo-rgb'         => musa_color_rgb($c('fondo_profundo', '#003366'), '0, 51, 102'),
-    '--musa-tarjeta'           => $c('tarjeta', '#0A5C2A'),
-    '--musa-tarjeta-borde'     => $c('tarjeta_borde', '#10A13B'),
+    '--musa-fondo'             => $c('fondo', '#8F1824'),
+    '--musa-fondo-profundo'    => $c('fondo_profundo', '#5C0D16'),
+    '--musa-fondo-rgb'         => musa_color_rgb($c('fondo_profundo', '#5C0D16'), '92, 13, 22'),
+    '--musa-tarjeta'           => $c('tarjeta', '#761420'),
+    '--musa-tarjeta-borde'     => $c('tarjeta_borde', '#B03A47'),
     '--musa-texto'             => $c('texto', '#FFFFFF'),
     '--musa-texto-rgb'         => musa_color_rgb($c('texto', '#FFFFFF'), '255, 255, 255'),
-    '--musa-texto-suave'       => $c('texto_suave', '#EAF5EC'),
+    '--musa-texto-suave'       => $c('texto_suave', '#F6DCDF'),
     '--musa-acento'            => $c('acento', '#FFD500'),
     '--musa-acento-rgb'        => musa_color_rgb($c('acento', '#FFD500'), '255, 213, 0'),
-    '--musa-sobre-acento'      => $c('texto_sobre_acento', '#1A1A1A'),
-    '--musa-acento-secundario' => $c('acento_secundario', '#4FC3F7'),
+    '--musa-sobre-acento'      => $c('texto_sobre_acento', '#2B0A0E'),
+    '--musa-acento-secundario' => $c('acento_secundario', '#10A13B'),
     '--musa-burbuja-persona'   => $c('burbuja_persona', '#FFFFFF'),
-    '--musa-texto-persona'     => $c('texto_persona', '#003366'),
+    '--musa-texto-persona'     => $c('texto_persona', '#8F1824'),
     '--musa-exito'             => $c('exito', '#10A13B'),
     '--musa-error'             => $c('error', '#FFB3BC'),
-    '--musa-institucional'     => $c('institucional', '#003366'),
+    '--musa-institucional'     => $c('institucional', '#5C0D16'),
     '--musa-opacidad-fondo'    => (string) $opacidadFondo,
     '--musa-proporcion'        => $proporcion,
 );
+// url() sin comillas y cada segmento codificado: dentro de <style> no hay forma de cerrar la regla.
+if ($fondo !== '') { $css['--musa-imagen-fondo'] = 'url(' . implode('/', array_map('rawurlencode', explode('/', $fondo))) . ')'; }
 ?>
 <!DOCTYPE html>
 <html lang="es">
@@ -115,7 +116,7 @@ $css = array(
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="description" content="<?php echo musa_e(musa_dato($marca, 'descripcion', '')); ?>">
-<meta name="theme-color" content="<?php echo musa_e($c('fondo_profundo', '#003366')); ?>">
+<meta name="theme-color" content="<?php echo musa_e($c('fondo_profundo', '#5C0D16')); ?>">
 <title><?php echo musa_e(musa_dato($marca, 'titulo_sitio', 'QuéDice!')); ?></title>
 <?php if ($favicon !== '') : ?><link rel="icon" href="<?php echo musa_e($favicon); ?>"><?php endif; ?>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -123,27 +124,18 @@ $css = array(
 <link href="https://fonts.googleapis.com/css2?family=Hind+Madurai:wght@500;600;700&family=Nunito+Sans:opsz,wght@6..12,400;6..12,600;6..12,700&display=swap" rel="stylesheet">
 <?php if ($retrato !== '') : ?><link rel="preload" as="image" href="<?php echo musa_e($retrato); ?>"><?php endif; ?>
 <link rel="stylesheet" href="<?php echo musa_e(musa_recurso('wj-includes/css/app.css')); ?>">
-<style>:root{<?php foreach ($css as $var => $valor) { echo $var . ':' . musa_e($valor) . ';'; } ?>}</style>
+<style nonce="<?php echo musa_e($nonce); ?>">:root{<?php foreach ($css as $var => $valor) { echo $var . ':' . musa_e($valor) . ';'; } ?>}</style>
 </head>
 <body class="estado-inicio">
 
-<div id="app" class="app<?php echo $mostrarGovco ? ' con-govco' : ''; ?>">
+<div id="app" class="app">
 
-  <?php if ($fondo !== '') : ?><div class="capa-fondo" style="background-image:url('<?php echo musa_e($fondo); ?>')" aria-hidden="true"></div><?php endif; ?>
+  <?php if ($fondo !== '') : ?><div class="capa-fondo" aria-hidden="true"></div><?php endif; ?>
   <canvas id="escena" aria-hidden="true"></canvas>
   <?php if ($rama !== '') : ?><img class="deco deco-rama" src="<?php echo musa_e($rama); ?>" alt="" aria-hidden="true"><?php endif; ?>
   <?php if ($barra !== '') : ?><img class="deco deco-barra" src="<?php echo musa_e($barra); ?>" alt="" aria-hidden="true"><?php endif; ?>
 
   <a class="saltar" href="#pregunta">Ir a la caja de preguntas</a>
-
-  <?php if ($mostrarGovco) : ?>
-  <div class="govco" role="navigation" aria-label="Portal del Estado colombiano">
-    <a class="govco-marca" href="https://www.gov.co" target="_blank" rel="noopener" aria-label="GOV.CO, portal del Estado colombiano">GOV.CO</a>
-    <a class="govco-entidad" href="<?php echo musa_e($sitioEntidad !== '' ? $sitioEntidad : 'https://www.narino.gov.co'); ?>" target="_blank" rel="noopener">
-      <?php if ($logoEntidad !== '') : ?><img src="<?php echo musa_e($logoEntidad); ?>" alt="<?php echo musa_e($entidad); ?>"><?php else : ?><?php echo musa_e($entidad); ?><?php endif; ?>
-    </a>
-  </div>
-  <?php endif; ?>
 
   <header class="cabecera">
     <?php if ($logo !== '') : ?>
@@ -261,26 +253,30 @@ $css = array(
     </div>
 
     <p class="pie">
-      <span><?php echo musa_e($t('pie', 'Gobernación de Nariño')); ?></span>
+      <?php if ($sitioEntidad !== '') : ?>
+        <a href="<?php echo musa_e($sitioEntidad); ?>" target="_blank" rel="noopener"><?php echo musa_e($t('pie', $entidad)); ?></a>
+      <?php else : ?>
+        <span><?php echo musa_e($t('pie', $entidad)); ?></span>
+      <?php endif; ?>
       <span class="hora-legal">Hora legal colombiana: <time id="hora-legal">—</time></span>
     </p>
   </section>
 
   <?php if ($formularioActivo) : ?>
   <dialog class="dialogo" id="dialogo-datos" aria-labelledby="titulo-datos">
-    <form id="formulario" novalidate>
+    <form id="formulario" novalidate autocomplete="off">
       <h2 id="titulo-datos"><?php echo musa_e($t('formulario_titulo', 'Antes de empezar, cuéntanos quién eres')); ?></h2>
       <p class="ayuda"><?php echo musa_e($t('formulario_ayuda', '')); ?></p>
 
       <div class="campo">
         <label for="nombre">Nombres y apellidos</label>
-        <input type="text" id="nombre" name="nombre" autocomplete="name" maxlength="120" required>
+        <input type="text" id="nombre" name="nombre" autocomplete="off" maxlength="120" required>
         <span class="error-campo" id="error-nombre"></span>
       </div>
       <?php if (!empty($form['pedir_correo'])) : ?>
       <div class="campo">
         <label for="correo">Correo electrónico <?php echo empty($form['correo_obligatorio']) ? '<small>(opcional)</small>' : ''; ?></label>
-        <input type="email" id="correo" name="correo" autocomplete="email" inputmode="email" maxlength="160" <?php echo !empty($form['correo_obligatorio']) ? 'required' : ''; ?>>
+        <input type="email" id="correo" name="correo" autocomplete="off" inputmode="email" maxlength="160" <?php echo !empty($form['correo_obligatorio']) ? 'required' : ''; ?>>
         <span class="error-campo" id="error-correo"></span>
       </div>
       <?php endif; ?>
@@ -296,7 +292,7 @@ $css = array(
             <?php if (!empty($form['ciudad_otro'])) : ?><option value="Otro municipio">Otro municipio (fuera de Nariño)</option><?php endif; ?>
           </select>
         <?php else : ?>
-          <input type="text" id="ciudad" name="ciudad" maxlength="80" autocomplete="address-level2" <?php echo !empty($form['ciudad_obligatoria']) ? 'required' : ''; ?>>
+          <input type="text" id="ciudad" name="ciudad" maxlength="80" autocomplete="off" <?php echo !empty($form['ciudad_obligatoria']) ? 'required' : ''; ?>>
         <?php endif; ?>
         <span class="error-campo" id="error-ciudad"></span>
       </div>
@@ -304,7 +300,7 @@ $css = array(
       <?php if (!empty($form['pedir_telefono'])) : ?>
       <div class="campo">
         <label for="telefono">Teléfono <?php echo empty($form['telefono_obligatorio']) ? '<small>(opcional)</small>' : ''; ?></label>
-        <input type="tel" id="telefono" name="telefono" autocomplete="tel" inputmode="tel" maxlength="40" <?php echo !empty($form['telefono_obligatorio']) ? 'required' : ''; ?>>
+        <input type="tel" id="telefono" name="telefono" autocomplete="off" inputmode="tel" maxlength="40" <?php echo !empty($form['telefono_obligatorio']) ? 'required' : ''; ?>>
         <span class="error-campo" id="error-telefono"></span>
       </div>
       <?php endif; ?>
@@ -333,7 +329,7 @@ $css = array(
   <div class="aviso-flotante" id="aviso-flotante" role="alert" hidden></div>
 </div>
 
-<script>window.MUSA_CONFIG = <?php echo json_encode($configJs, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>;</script>
+<script nonce="<?php echo musa_e($nonce); ?>">window.MUSA_CONFIG = <?php echo json_encode($configJs, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>;</script>
 <script src="<?php echo musa_e(musa_recurso('wj-includes/js/vendor/three.min.js')); ?>" defer></script>
 <script src="<?php echo musa_e(musa_recurso('wj-includes/js/vendor/livekit-client.umd.js')); ?>" defer></script>
 <script src="<?php echo musa_e(musa_recurso('wj-includes/js/app.js')); ?>" defer></script>
