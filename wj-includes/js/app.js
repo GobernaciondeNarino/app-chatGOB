@@ -17,6 +17,8 @@
   var doc = document;
   var TOPICO_COMANDOS = 'agent-control';
   var TOPICO_EVENTOS = 'agent-response';
+  // Nombres observados en las salas de LiveAvatar. No figuran en su documentación, así que
+  // solo se usan como preferencia: el video se toma de cualquier participante que lo publique.
   var PARTICIPANTE_AVATAR = 'heygen';
   var PREFIJO_AGENTE = 'liveavatar-agent-';
 
@@ -215,7 +217,9 @@
     }
 
     function recolocar() {
-      ancho = window.innerWidth; alto = window.innerHeight;
+      var app = $('app');
+      ancho = app ? app.clientWidth : window.innerWidth;
+      alto = app ? app.clientHeight : window.innerHeight;
       renderer.setSize(ancho, alto, false);
       camara.aspect = ancho / alto;
       camara.updateProjectionMatrix();
@@ -408,19 +412,26 @@
         enCurso.querySelector('.texto').textContent = nuevo;
         alFinal();
       },
+      avatarPensando: function () {
+        if (enCurso) { return; }
+        enCurso = burbuja('avatar', '');
+        enCurso.classList.add('en-curso');
+        enCurso.dataset.texto = '';
+      },
       avatarFinal: function (texto) {
         if (enCurso) {
           enCurso.classList.remove('en-curso');
           enCurso.querySelector('.texto').textContent = texto;
           enCurso = null;
+          alFinal();
         } else {
           burbuja('avatar', texto);
         }
       },
       cerrarEnCurso: function () {
         if (enCurso) {
-          enCurso.classList.remove('en-curso');
           var texto = enCurso.dataset.texto;
+          if (!texto) { enCurso.remove(); } else { enCurso.classList.remove('en-curso'); }
           enCurso = null;
           return texto;
         }
@@ -494,6 +505,9 @@
 
   var video = $('avatar-video');
   var audio = $('avatar-audio');
+  var participanteVideo = null;
+  var audioPrincipal = false;
+  var extrasAudio = [];
 
   function claseEstado(nombre) {
     doc.body.classList.remove('estado-inicio', 'estado-conectando', 'estado-escuchando', 'estado-hablando', 'estado-final');
@@ -520,6 +534,7 @@
     if (boton) { boton.disabled = !activo; }
     $$('.sugerencia').forEach(function (s) { s.disabled = !activo; });
     $('controles').hidden = !(estado === 'activa');
+    $('controles-fin').hidden = !(estado === 'activa');
   }
 
   function comprobarListo() {
@@ -569,6 +584,7 @@
         break;
       case 'avatar.speak_started':
         estadoAvatar('hablando');
+        Transcripcion.avatarPensando();
         break;
       case 'avatar.speak_ended':
         estadoAvatar(microfonoActivo && !CONFIG.avatar.pulsarHablar ? 'escuchando' : '');
@@ -583,8 +599,13 @@
           Guardado.agregar('avatar', ev.text.trim(), 'voz', ev.event_id);
         }
         break;
+      case 'user.push_to_talk_start_failed':
+        avisar('No fue posible activar el micrófono. Inténtalo de nuevo o escribe tu pregunta.');
+        break;
       case 'session.stopped':
-        terminar(ev.stop_reason === 'MAX_DURATION_REACHED' ? 'tiempo' : 'servidor');
+        // La documentación de LiveAvatar llama al campo end_reason.
+        var razon = ev.end_reason || ev.stop_reason || '';
+        terminar(razon === 'MAX_DURATION_REACHED' ? 'tiempo' : 'servidor');
         break;
     }
   }
@@ -607,14 +628,26 @@
     var E = LK.RoomEvent;
 
     sala.on(E.TrackSubscribed, function (pista, publicacion, participante) {
-      if (participante.identity !== PARTICIPANTE_AVATAR) { return; }
+      var identidad = participante.identity || '';
       if (pista.kind === 'video') {
+        // Un solo video: el del participante «heygen» si existe, si no el primero que llegue.
+        if (participanteVideo && participanteVideo !== identidad && identidad !== PARTICIPANTE_AVATAR) { return; }
+        participanteVideo = identidad;
         pista.attach(video);
         videoListo = true;
         comprobarListo();
       } else if (pista.kind === 'audio') {
-        pista.attach(audio);
-        conectarAnalizador(pista);
+        // Todo audio remoto se reproduce; el primero alimenta el aura de la escena 3D.
+        if (!audioPrincipal) {
+          audioPrincipal = true;
+          pista.attach(audio);
+          conectarAnalizador(pista);
+        } else {
+          var extra = pista.attach();
+          extra.hidden = true;
+          $('app').appendChild(extra);
+          extrasAudio.push(extra);
+        }
       }
     });
 
@@ -677,6 +710,7 @@
     if (!LK) { avisar('El navegador no pudo cargar el módulo de video. Recarga la página.'); return Promise.resolve(false); }
     estado = 'conectando';
     agenteListo = false; videoListo = false;
+    participanteVideo = null; audioPrincipal = false;
     velo('velo-cargando');
     claseEstado('conectando');
     Transcripcion.vaciar();
@@ -747,7 +781,11 @@
     claseEstado('final');
     habilitarEntrada(false);
     $('controles').hidden = true;
+    $('controles-fin').hidden = true;
     $('reloj').hidden = true;
+    extrasAudio.forEach(function (el) { el.remove(); });
+    extrasAudio = [];
+    participanteVideo = null;
     if (video) { video.srcObject = null; }
 
     var final = function () {
@@ -823,7 +861,7 @@
     var tel = $('telefono');
     if (tel && !datos.telefono && tel.required) { errores.telefono = 'Escribe tu teléfono.'; }
     var ciudad = $('ciudad');
-    if (ciudad && !datos.ciudad && ciudad.required) { errores.ciudad = 'Escribe tu municipio.'; }
+    if (ciudad && !datos.ciudad && ciudad.required) { errores.ciudad = 'Elige tu municipio.'; }
     if (CONFIG.exigirAceptacion && !datos.autorizacion) { errores.autorizacion = 'Debes autorizar el tratamiento de datos para continuar.'; }
     return errores;
   }
@@ -968,6 +1006,22 @@
     if (navigator.sendBeacon) { navigator.sendBeacon(CONFIG.rutas.finalizar, carga); }
     try { if (sala) { sala.disconnect(); } } catch (e) { /* nada */ }
   });
+
+  var botonAccesible = $('accesibilidad');
+  if (botonAccesible) {
+    var aplicarAccesible = function (activo) {
+      $('app').classList.toggle('modo-accesible', activo);
+      botonAccesible.setAttribute('aria-pressed', activo ? 'true' : 'false');
+    };
+    var guardado = false;
+    try { guardado = window.localStorage.getItem('musa_accesible') === '1'; } catch (e) { /* sin almacenamiento */ }
+    aplicarAccesible(guardado);
+    botonAccesible.addEventListener('click', function () {
+      var activo = botonAccesible.getAttribute('aria-pressed') !== 'true';
+      aplicarAccesible(activo);
+      try { window.localStorage.setItem('musa_accesible', activo ? '1' : '0'); } catch (e) { /* sin almacenamiento */ }
+    });
+  }
 
   estadoAvatar('');
 })();

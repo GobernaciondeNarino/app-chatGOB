@@ -1,0 +1,22 @@
+# Musa Café · Contenido escribible (ajustes, conversaciones, subidas y bitácoras)
+# Por la web solo se sirven imágenes. Nada de aquí se ejecuta como código.
+
+Options -Indexes
+
+<IfModule mod_authz_core.c>
+  Require all denied
+  <FilesMatch "\.(png|jpe?g|gif|webp)$">
+    Require all granted
+  </FilesMatch>
+</IfModule>
+<IfModule !mod_authz_core.c>
+  Order allow,deny
+  Deny from all
+  <FilesMatch "\.(png|jpe?g|gif|webp)$">
+    Order deny,allow
+    Allow from all
+  </FilesMatch>
+</IfModule>
+
+# Un script subido por error tampoco se ejecuta: la regla anterior ya lo bloquea
+# (solo se sirven imágenes) antes de que PHP lo lea.

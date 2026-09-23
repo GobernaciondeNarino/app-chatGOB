@@ -1,17 +1,19 @@
 /* Musa Café · Panel de administración */
 
 :root {
-  --panel-rojo: #AE1D2C;
-  --panel-rojo-oscuro: #7E0E1C;
-  --panel-crema: #F7EFE0;
-  --panel-acento: #F2B705;
-  --panel-texto: #23201F;
-  --panel-tenue: #6B6461;
-  --panel-borde: #E2DBD2;
-  --panel-fondo: #F6F3EE;
-  --panel-ok: #1F7A4D;
+  /* Paleta institucional (Manual de Identidad Visual, Gobernación de Nariño, 2024):
+     azul #003366, verde #10A13B (#0B7A2E cuando es texto sobre blanco), amarillo #FFD500. */
+  --panel-primario: #003366;
+  --panel-primario-oscuro: #00264D;
+  --panel-crema: #FFFFFF;
+  --panel-acento: #FFD500;
+  --panel-texto: #1D1D1F;
+  --panel-tenue: #4A4A4A;
+  --panel-borde: #D9DEE5;
+  --panel-fondo: #F5F6F8;
+  --panel-ok: #0B7A2E;
   --panel-mal: #B3261E;
-  --panel-aviso: #9A6B00;
+  --panel-aviso: #8A5A00;
 }
 
 * { box-sizing: border-box; }
@@ -20,22 +22,23 @@ body {
   margin: 0;
   background: var(--panel-fondo);
   color: var(--panel-texto);
-  font-family: 'Segoe UI', system-ui, -apple-system, Roboto, Arial, sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, Roboto, Arial, sans-serif;
   font-size: 15px;
   line-height: 1.5;
 }
 
-a { color: var(--panel-rojo); }
+a { color: var(--panel-primario); }
 
 /* ---------- Cabecera ---------- */
 
 .barra {
+  border-top: 4px solid var(--panel-acento);
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 16px;
   flex-wrap: wrap;
-  background: linear-gradient(120deg, var(--panel-rojo), var(--panel-rojo-oscuro));
+  background: linear-gradient(120deg, var(--panel-primario), var(--panel-primario-oscuro));
   color: var(--panel-crema);
   padding: 12px 24px;
 }
@@ -71,8 +74,8 @@ a { color: var(--panel-rojo); }
   border-bottom: 3px solid transparent;
 }
 
-.menu a:hover { color: var(--panel-rojo); }
-.menu a.activo { color: var(--panel-rojo); border-bottom-color: var(--panel-rojo); }
+.menu a:hover { color: var(--panel-primario); }
+.menu a.activo { color: var(--panel-primario); border-bottom-color: var(--panel-primario); }
 
 .contenido { padding: 22px 24px 60px; max-width: 1500px; margin: 0 auto; }
 .contenido h1 { font-size: 24px; margin: 0 0 18px; }
@@ -113,20 +116,20 @@ input[type="number"], input[type="search"], input[type="date"], select, textarea
 textarea { resize: vertical; }
 
 input:focus, select:focus, textarea:focus {
-  outline: 2px solid rgba(174, 29, 44, .35);
+  outline: 2px solid rgba(0, 51, 102, .35);
   outline-offset: 1px;
-  border-color: var(--panel-rojo);
+  border-color: var(--panel-primario);
 }
 
 .interruptor { display: flex; align-items: center; gap: 9px; font-weight: 600; }
-.interruptor input { width: 18px; height: 18px; margin: 0; accent-color: var(--panel-rojo); }
+.interruptor input { width: 18px; height: 18px; margin: 0; accent-color: var(--panel-primario); }
 
 .acciones-panel { margin: 18px 0 30px; display: flex; gap: 12px; }
 
 .boton {
   border: 0;
   border-radius: 999px;
-  background: var(--panel-rojo);
+  background: var(--panel-primario);
   color: #fff;
   font: inherit;
   font-weight: 700;
@@ -134,7 +137,7 @@ input:focus, select:focus, textarea:focus {
   cursor: pointer;
 }
 
-.boton:hover { background: var(--panel-rojo-oscuro); }
+.boton:hover { background: var(--panel-primario-oscuro); }
 .boton:disabled { opacity: .5; cursor: not-allowed; }
 
 .boton-linea {
@@ -150,7 +153,7 @@ input:focus, select:focus, textarea:focus {
   text-decoration: none;
 }
 
-.boton-linea:hover { border-color: var(--panel-rojo); color: var(--panel-rojo); }
+.boton-linea:hover { border-color: var(--panel-primario); color: var(--panel-primario); }
 .boton-linea.pequeno { padding: 5px 12px; font-size: 12.5px; }
 .boton-linea.peligro:hover { border-color: var(--panel-mal); color: var(--panel-mal); }
 
@@ -173,7 +176,7 @@ input:focus, select:focus, textarea:focus {
 .alerta.error { border-color: var(--panel-mal); background: #FDECEA; color: #7A1A14; }
 
 .nota { font-size: 12.5px; color: var(--panel-tenue); margin: 10px 0 0; }
-.nota code, code { background: #F1ECE4; padding: 1px 6px; border-radius: 5px; font-size: 12px; }
+.nota code, code { background: #EEF1F5; padding: 1px 6px; border-radius: 5px; font-size: 12px; }
 .tenue { display: block; color: var(--panel-tenue); font-size: 12.5px; }
 .vacio { background: #fff; border: 1px dashed var(--panel-borde); border-radius: 14px; padding: 40px; text-align: center; color: var(--panel-tenue); }
 
@@ -184,7 +187,7 @@ input:focus, select:focus, textarea:focus {
 .resumen {
   background: #fff;
   border: 1px solid var(--panel-borde);
-  border-left: 4px solid var(--panel-rojo);
+  border-left: 4px solid var(--panel-primario);
   border-radius: 12px;
   padding: 10px 18px;
   font-size: 13px;
@@ -250,7 +253,7 @@ input:focus, select:focus, textarea:focus {
 
 .paginacion { display: flex; gap: 6px; margin: 16px 0; flex-wrap: wrap; }
 .paginacion a { padding: 7px 13px; border: 1px solid var(--panel-borde); border-radius: 9px; background: #fff; text-decoration: none; font-size: 13px; }
-.paginacion a.activo { background: var(--panel-rojo); color: #fff; border-color: var(--panel-rojo); }
+.paginacion a.activo { background: var(--panel-primario); color: #fff; border-color: var(--panel-primario); }
 
 /* ---------- Imágenes y colores ---------- */
 
@@ -275,10 +278,10 @@ input:focus, select:focus, textarea:focus {
   font-weight: 400;
 }
 
-.opcion.activa { border-color: var(--panel-rojo); background: #FFF6F6; }
+.opcion.activa { border-color: var(--panel-primario); background: #FFF6F6; }
 .opcion strong { display: block; margin: 4px 0 2px; color: var(--panel-texto); }
 .opcion span { font-size: 12.5px; color: var(--panel-tenue); }
-.opcion input { margin: 0; accent-color: var(--panel-rojo); }
+.opcion input { margin: 0; accent-color: var(--panel-primario); }
 
 .verificaciones { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; }
 .verificacion { border: 1px solid var(--panel-borde); border-radius: 12px; padding: 14px; background: #FBF8F4; }
@@ -290,7 +293,7 @@ input:focus, select:focus, textarea:focus {
   display: grid;
   place-items: center;
   min-height: 100vh;
-  background: linear-gradient(135deg, var(--panel-rojo), var(--panel-rojo-oscuro));
+  background: linear-gradient(135deg, var(--panel-primario), var(--panel-primario-oscuro));
   padding: 20px;
 }
 
@@ -302,7 +305,11 @@ input:focus, select:focus, textarea:focus {
   box-shadow: 0 24px 60px rgba(0, 0, 0, .3);
 }
 
-.tarjeta-acceso img { width: 130px; display: block; margin: 0 auto 10px; }
+.acceso-marca { margin: -30px -28px 18px; padding: 18px; border-radius: 18px 18px 0 0; background: var(--panel-primario); border-top: 4px solid var(--panel-acento); }
+.tarjeta-acceso img { width: 130px; display: block; margin: 0 auto; }
+.tarjeta-acceso small.tenue { margin-top: 4px; }
+.opacidad { margin-top: 14px; }
+.opacidad input[type="range"] { width: min(100%, 360px); display: block; margin-top: 6px; accent-color: var(--panel-primario); }
 .tarjeta-acceso h1 { font-size: 19px; margin: 0 0 6px; text-align: center; }
 .tarjeta-acceso p { font-size: 12.5px; color: var(--panel-tenue); text-align: center; margin: 0 0 18px; }
 .tarjeta-acceso label { margin-top: 12px; }

@@ -1,0 +1,39 @@
+# Musa Café · Gobernación de Nariño
+# Reglas para Apache (Plesk usa Apache detrás de nginx por defecto).
+# Si el servidor solo usa nginx, estas reglas no se aplican, pero los archivos de datos
+# siguen protegidos: empiezan con una línea PHP que responde 403.
+
+DirectoryIndex index.php
+Options -Indexes
+
+# HTTPS: actívalo en Plesk → Hosting y DNS → «Redirección 301 permanente de HTTP a HTTPS».
+# (Aquí no se fuerza para no romper el sitio si el certificado todavía no está instalado.)
+
+# Documentación, archivos ocultos y de configuración: nunca por la web.
+<FilesMatch "(^\.|\.(md|log|lock|tmp|bak|sql|ini|json|dist|sh|yml|yaml)$|^(composer\.(json|lock)|package(-lock)?\.json)$)">
+  <IfModule mod_authz_core.c>
+    Require all denied
+  </IfModule>
+  <IfModule !mod_authz_core.c>
+    Order allow,deny
+    Deny from all
+  </IfModule>
+</FilesMatch>
+
+<IfModule mod_headers.c>
+  Header always set X-Content-Type-Options "nosniff"
+  Header always set Referrer-Policy "strict-origin-when-cross-origin"
+</IfModule>
+
+<IfModule mod_deflate.c>
+  AddOutputFilterByType DEFLATE text/html text/css application/javascript application/json image/svg+xml
+</IfModule>
+
+<IfModule mod_expires.c>
+  ExpiresActive On
+  ExpiresByType text/css "access plus 30 days"
+  ExpiresByType application/javascript "access plus 30 days"
+  ExpiresByType image/png "access plus 30 days"
+  ExpiresByType image/jpeg "access plus 30 days"
+  ExpiresByType image/webp "access plus 30 days"
+</IfModule>

@@ -1,4 +1,4 @@
-# Musa Café · Documento técnico (versión 2.0.0)
+# Musa Café · Documento técnico (versión 2.1.0)
 
 Complemento del `README.md` para quien vaya a mantener o ampliar el sistema.
 
@@ -74,6 +74,9 @@ Cuerpo del token (modo FULL):
 - El **contexto** se arma con `musa_heygen_prompt()` (personalidad + tema + reglas + máximo de
   palabras + conocimiento) y el saludo (`opening_text`). Su huella SHA-1 se guarda en
   `heygen.context_huella`: solo se vuelve a enviar si algo cambió.
+- Verificado contra `https://docs.liveavatar.com/openapi.json` (septiembre de 2026): rutas, métodos,
+  autenticación (`X-API-KEY` o `Bearer`), cuerpo del token FULL y respuesta de `sessions/start`
+  (`livekit_url`, `livekit_client_token`, `max_session_duration`).
 - `avatar_persona` figura como obsoleto en la documentación a favor de `voice_agent` (agentes
   guardados en el panel de LiveAvatar). Se usa porque permite configurar voz, idioma y contexto
   desde wj-admin. Si LiveAvatar lo retira, el cambio es solo en `musa_heygen_sesion_cuerpo()`.
@@ -81,24 +84,34 @@ Cuerpo del token (modo FULL):
 
 ### Eventos en la sala (canales de datos de LiveKit)
 
+Según la página *FULL Mode → Events* de la documentación de LiveAvatar:
+
 | Canal | Evento | Uso en `app.js` |
 |---|---|---|
-| `agent-response` | `user.transcription.chunk` | Texto provisional bajo la transcripción |
-| `agent-response` | `user.transcription` | Burbuja de la persona + guardado (`ref` = `event_id`) |
-| `agent-response` | `avatar.transcription.chunk` | Burbuja del avatar escribiéndose |
-| `agent-response` | `avatar.transcription` | Texto final del avatar + guardado |
-| `agent-response` | `user.speak_started/ended`, `avatar.speak_started/ended` | Estado «Te escucho… / Respondiendo…» y aura |
-| `agent-response` | `session.stopped` | Cierra la conversación |
+| `agent-response` | `user.transcription` `{text}` | Burbuja de la persona + guardado (`ref` = `event_id`) |
+| `agent-response` | `avatar.transcription` `{text}` | Texto final del avatar + guardado |
+| `agent-response` | `user.speak_started/ended`, `avatar.speak_started/ended` | Estado «Te escucho… / Respondiendo…», aura y burbuja «•••» mientras el avatar habla |
+| `agent-response` | `user.push_to_talk_start_failed` | Aviso en pantalla |
+| `agent-response` | `session.stopped` `{end_reason}` | Cierra la conversación (`MAX_DURATION_REACHED` → motivo «tiempo») |
 | `agent-control` | `avatar.speak_response` `{text}` | Pregunta escrita o sugerida (el avatar responde) |
 | `agent-control` | `avatar.interrupt` | Botón interrumpir |
 | `agent-control` | `avatar.start_listening` / `stop_listening` | Micrófono encendido / apagado |
 | `agent-control` | `user.start_push_to_talk` / `stop_push_to_talk` | Modo «mantener presionado para hablar» |
 
 Todos los mensajes son JSON con `event_id` y `event_type`, codificados en UTF-8 y publicados con
-`reliable: true`. El video y la voz llegan del participante `heygen`; el agente se identifica como
-`liveavatar-agent-<session_id>`.
+`reliable: true`.
 
----
+- La documentación **no** menciona fragmentos parciales (`*.transcription.chunk`): `app.js` los
+  atiende si llegan, pero no depende de ellos; el texto del avatar aparece al terminar cada frase.
+- La documentación **no** fija el nombre de los participantes. `app.js` prefiere el participante
+  `heygen` para el video (nombre observado en las salas), pero toma el video del primero que lo
+  publique y reproduce todo audio remoto, así un cambio de nombre no deja la pantalla en negro.
+
+### Prueba local sin créditos
+
+`heygen.endpoint` acepta `http://localhost` o `http://127.0.0.1`. Con un simulador de las rutas
+REST y un servidor LiveKit en modo `--dev` con un participante de prueba que publique video y los
+eventos anteriores, se recorre todo el flujo (formulario → sala → transcripción → JSON → panel).
 
 ## 4. API pública (`wj-includes/api/`)
 
@@ -153,8 +166,29 @@ el resumen por correo desde el panel.
 
 ---
 
-## 6. La escena 3D (`wj-includes/js/app.js`)
+## 6. La pantalla (`index.php`, `app.css`) y la escena 3D (`app.js`)
 
+### Distribución: un solo contenedor sin scroll
+- `html` y `body` tienen `overflow: hidden`; todo vive en `div#app` (100 % × `100vh`/`100dvh`)
+  con una rejilla de filas: franja GOV.CO (opcional) · cabecera · **escenario** (`1fr`, el avatar
+  al centro con `aspect-ratio` configurable) · **panel inferior** (transcripción, sugerencias,
+  entrada y controles). Solo la transcripción se desplaza por dentro, con un desvanecido en su
+  borde superior.
+- En pantallas horizontales bajas (`orientation: landscape` y `max-height: 560px`) el avatar y el
+  panel se ponen lado a lado. En pantallas bajas se ocultan primero los accesorios (subtítulo, pie).
+- Probado sin scroll en 1920×1080, 1366×768, 1080×1920 (kiosco vertical), 768×1024, 390×844,
+  360×640 y 844×390.
+
+### Criterios de diseño (apple-design-skill, traducido a web)
+- Dos capas: contenido (fondo, escena, avatar) y funcional (cabecera y panel inferior). El
+  material translúcido (`backdrop-filter: blur(24px) saturate(1.4)`) solo va en la capa funcional.
+- El color de marca se reserva para la acción principal (Iniciar, Enviar) y los estados
+  (escuchando, hablando). Objetivos táctiles de 44-48 px.
+- Contraste AA verificado con los valores hexadecimales de las dos paletas (mínimo 4.57:1).
+- `prefers-reduced-transparency`, `prefers-contrast: more` y `prefers-reduced-motion` tienen
+  respuesta, y el botón de accesibilidad activa texto grande con superficies opacas.
+
+### Escena 3D
 - `WebGLRenderer` transparente sobre el degradado CSS; cámara en perspectiva.
 - **Granos de café**: elipsoide + surco en S (`TubeGeometry` sobre una `CatmullRomCurve3`),
   repartidos a los lados, flotando y girando despacio.
@@ -165,8 +199,6 @@ el resumen por correo desde el panel.
 - El centro y el radio se calculan desde la caja DOM del marco (`pantallaAMundo()`), con
   `ResizeObserver`.
 - Respeta `prefers-reduced-motion` y el interruptor «Efectos 3D» del panel.
-
----
 
 ## 7. Convenciones
 
@@ -186,6 +218,7 @@ el resumen por correo desde el panel.
 | Quiero… | Dónde |
 |---|---|
 | Otro campo en el formulario de inicio | `index.php` (HTML), `api/sesion.php` (validación), `musa_conversacion_base()`, `wj-admin/ajustes.php` y el detalle de `wj-admin/index.php`. |
+| Cambiar la lista de municipios | `musa_municipios_narino()` en `wj-includes/configuracion.php` (la usa el formulario y la validación del servidor). |
 | Otro tema de conversación | Solo desde el panel: **Avatar y tema** (tema, conocimiento, saludo y sugerencias). |
 | Usar un agente de voz guardado en LiveAvatar | Reemplazar `avatar_persona` por `voice_agent: { id }` en `musa_heygen_sesion_cuerpo()`. |
 | Reaccionar a un evento nuevo de LiveAvatar | `alEvento()` en `wj-includes/js/app.js`. |
@@ -193,4 +226,4 @@ el resumen por correo desde el panel.
 
 ---
 
-Gobernación de Nariño · Musa Café · versión 2.0.0
+Gobernación de Nariño · Musa Café · versión 2.1.0

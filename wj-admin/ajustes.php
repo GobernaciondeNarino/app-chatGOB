@@ -60,6 +60,7 @@ $etiquetasColor = array(
     'acento' => 'Acento (botones y aura)', 'texto_sobre_acento' => 'Texto sobre el acento',
     'acento_secundario' => 'Acento secundario (escuchando)', 'burbuja_persona' => 'Burbuja de la persona',
     'texto_persona' => 'Texto de la burbuja de la persona', 'exito' => 'Éxito', 'error' => 'Error',
+    'institucional' => 'Institucional (franja GOV.CO y accesibilidad)',
 );
 
 $etiquetasTexto = array(
@@ -68,7 +69,8 @@ $etiquetasTexto = array(
     'boton_microfono' => 'Botón del micrófono', 'escribir_ayuda' => 'Ayuda de la caja de texto',
     'boton_enviar' => 'Botón para enviar', 'conectando' => 'Mensaje mientras conecta',
     'escuchando' => 'Estado: escuchando', 'hablando' => 'Estado: respondiendo',
-    'transcripcion' => 'Título de la transcripción', 'sugerencias' => 'Antes de las preguntas sugeridas',
+    'transcripcion' => 'Título de la transcripción (lectores de pantalla)', 'transcripcion_vacia' => 'Transcripción vacía (antes de empezar)',
+    'sugerencias' => 'Antes de las preguntas sugeridas',
     'formulario_titulo' => 'Título del formulario de inicio', 'formulario_ayuda' => 'Ayuda del formulario de inicio',
     'despedida_titulo' => 'Título de despedida', 'despedida_texto' => 'Texto de despedida',
     'aviso_datos' => 'Autorización de datos (Ley 1581)', 'aviso_microfono' => 'Aviso si no hay micrófono', 'pie' => 'Pie de página',
@@ -81,12 +83,18 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
     foreach (array('nombre', 'eslogan', 'entidad', 'titulo_sitio', 'descripcion', 'sitio_entidad') as $campo) {
         musa_fijar($nuevos, 'marca.' . $campo, musa_texto(isset($_POST['marca'][$campo]) ? $_POST['marca'][$campo] : '', 200));
     }
-    $imagenes = array('marca.logo' => 'logo', 'marca.fondo' => 'fondo', 'marca.barra' => 'barra', 'marca.favicon' => 'favicon', 'avatar.retrato' => 'retrato');
+    $imagenes = array(
+        'marca.logo' => 'logo', 'marca.imagen_fondo' => 'imagen_fondo', 'marca.fondo' => 'fondo', 'marca.barra' => 'barra',
+        'marca.logo_entidad' => 'logo_entidad', 'marca.favicon' => 'favicon', 'avatar.retrato' => 'retrato',
+    );
     foreach ($imagenes as $ruta => $campo) {
         $subida = musa_subir_imagen('archivo_' . $campo);
         $valor = $subida !== '' ? $subida : musa_texto(isset($_POST['imagen'][$campo]) ? $_POST['imagen'][$campo] : '', 200);
         if ($valor === '' || musa_ruta_imagen_valida($valor)) { musa_fijar($nuevos, $ruta, $valor); }
     }
+
+    musa_fijar($nuevos, 'marca.opacidad_fondo', max(0, min(100, (int) ($_POST['marca']['opacidad_fondo'] ?? 35))));
+    musa_fijar($nuevos, 'marca.mostrar_govco', !empty($_POST['marca']['mostrar_govco']));
 
     foreach (array_keys($etiquetasColor) as $clave) {
         $color = musa_color(isset($_POST['colores'][$clave]) ? $_POST['colores'][$clave] : '', null);
@@ -97,7 +105,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
     }
 
     $f = isset($_POST['formulario']) && is_array($_POST['formulario']) ? $_POST['formulario'] : array();
-    foreach (array('activo', 'pedir_correo', 'correo_obligatorio', 'pedir_telefono', 'telefono_obligatorio', 'pedir_ciudad', 'ciudad_obligatoria') as $campo) {
+    foreach (array('activo', 'pedir_correo', 'correo_obligatorio', 'pedir_telefono', 'telefono_obligatorio', 'pedir_ciudad', 'ciudad_obligatoria', 'ciudad_lista', 'ciudad_otro') as $campo) {
         musa_fijar($nuevos, 'formulario.' . $campo, !empty($f[$campo]));
     }
     musa_fijar($nuevos, 'seguridad.exigir_aceptacion', !empty($_POST['seguridad']['exigir_aceptacion']));
@@ -139,6 +147,7 @@ musa_panel_mensaje();
     <label>Título del sitio (pestaña)<input type="text" name="marca[titulo_sitio]" value="<?php echo musa_e(musa_dato($ajustesPanel, 'marca.titulo_sitio', '')); ?>"></label>
     <label>Sitio de la entidad<input type="text" name="marca[sitio_entidad]" value="<?php echo musa_e(musa_dato($ajustesPanel, 'marca.sitio_entidad', '')); ?>"></label>
     <label class="ancho-total">Descripción (SEO)<input type="text" name="marca[descripcion]" value="<?php echo musa_e(musa_dato($ajustesPanel, 'marca.descripcion', '')); ?>"></label>
+    <?php musa_casilla('marca[mostrar_govco]', !empty(musa_dato($ajustesPanel, 'marca.mostrar_govco', true)), 'Mostrar la franja superior GOV.CO con el nombre o logo de la entidad'); ?>
   </div>
 </section>
 
@@ -146,11 +155,13 @@ musa_panel_mensaje();
   <h2>Imágenes y logos</h2>
   <div class="rejilla">
     <?php foreach (array(
-        'retrato' => array('Imagen del avatar (mientras se conecta)', 'avatar.retrato'),
-        'logo'    => array('Logo', 'marca.logo'),
-        'fondo'   => array('Rama decorativa (esquina superior)', 'marca.fondo'),
-        'barra'   => array('Imagen lateral', 'marca.barra'),
-        'favicon' => array('Favicon', 'marca.favicon'),
+        'retrato'      => array('Imagen del avatar (mientras se conecta)', 'avatar.retrato'),
+        'logo'         => array('Logo', 'marca.logo'),
+        'imagen_fondo' => array('Imagen de fondo (pantalla completa)', 'marca.imagen_fondo'),
+        'fondo'        => array('Decoración de la esquina superior', 'marca.fondo'),
+        'barra'        => array('Decoración lateral', 'marca.barra'),
+        'logo_entidad' => array('Logo de la entidad (franja GOV.CO)', 'marca.logo_entidad'),
+        'favicon'      => array('Favicon', 'marca.favicon'),
     ) as $campo => $info) :
         $valor = (string) musa_dato($ajustesPanel, $info[1], ''); ?>
       <div class="campo-imagen">
@@ -168,12 +179,18 @@ musa_panel_mensaje();
       </div>
     <?php endforeach; ?>
   </div>
+  <label class="opacidad">Visibilidad de la imagen de fondo: <strong><output id="opacidad-valor"><?php echo (int) musa_dato($ajustesPanel, 'marca.opacidad_fondo', 35); ?></output> %</strong>
+    <input type="range" name="marca[opacidad_fondo]" min="0" max="100" step="5" value="<?php echo (int) musa_dato($ajustesPanel, 'marca.opacidad_fondo', 35); ?>" oninput="document.getElementById('opacidad-valor').value=this.value"></label>
   <p class="nota">Las imágenes que subas se guardan en <code>wj-content/subidas</code>. Tamaño máximo: 5 MB.
-    La imagen del avatar se muestra en vertical (3:4) y se recorta al centro.</p>
+    La imagen del avatar se recorta al centro según el formato elegido en <a href="avatar.php">Avatar y tema</a>.
+    La imagen de fondo se mezcla con el color de fondo: baja su visibilidad si compite con el texto.</p>
 </section>
 
 <section class="bloque-panel">
   <h2>Colores</h2>
+  <p class="nota">Paletas rápidas (luego pulsa «Guardar cambios»):
+    <button type="button" class="boton-linea pequeno" data-paleta="institucional">Institucional Gobernación de Nariño</button>
+    <button type="button" class="boton-linea pequeno" data-paleta="musa">Musa Café (predeterminada)</button></p>
   <div class="rejilla colores">
     <?php foreach ($etiquetasColor as $clave => $etiqueta) :
         $valor = musa_color(musa_dato($colores, $clave, ''), '#000000'); ?>
@@ -203,6 +220,9 @@ musa_panel_mensaje();
     <span></span>
     <?php musa_casilla('formulario[pedir_ciudad]', !empty($f['pedir_ciudad']), 'Pedir municipio'); ?>
     <?php musa_casilla('formulario[ciudad_obligatoria]', !empty($f['ciudad_obligatoria']), 'Municipio obligatorio'); ?>
+    <span></span>
+    <?php musa_casilla('formulario[ciudad_lista]', !empty($f['ciudad_lista']), 'Elegir de la lista de los 64 municipios de Nariño'); ?>
+    <?php musa_casilla('formulario[ciudad_otro]', !empty($f['ciudad_otro']), 'Incluir «Otro municipio» (visitantes de fuera)'); ?>
   </div>
 </section>
 

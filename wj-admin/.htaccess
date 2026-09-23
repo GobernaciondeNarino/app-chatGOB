@@ -1,0 +1,18 @@
+# Musa Café · Panel de administración
+# El panel tiene su propio inicio de sesión (wj-admin/acceso.php).
+#
+# Protección adicional opcional con usuario y contraseña de Apache:
+# quita el # de las cuatro líneas siguientes y cambia la ruta por la real
+# (el panel la muestra calculada en «Acceso → Activar la autenticación de Apache»).
+#
+# AuthType Basic
+# AuthName "Panel Musa Cafe"
+# AuthUserFile /var/www/vhosts/TU-DOMINIO/httpdocs/wj-content/config/.htpasswd
+# Require valid-user
+
+Options -Indexes
+
+<IfModule mod_headers.c>
+  Header always set X-Robots-Tag "noindex, nofollow"
+  Header always set Cache-Control "no-store"
+</IfModule>

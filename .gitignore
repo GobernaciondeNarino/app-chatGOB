@@ -1,0 +1,19 @@
+# Musa Café · Datos de cada instalación (no se suben al repositorio)
+# Así `git pull` en Plesk nunca pisa ajustes, conversaciones ni claves.
+
+wj-content/config/ajustes.json.php
+wj-content/config/claves.php
+wj-content/config/.htpasswd
+wj-content/config/*.tmp
+wj-content/datos/
+wj-content/subidas/
+wj-content/logs/
+wj-admin/.htpasswd
+
+# Herramientas de desarrollo (se instalan fuera del proyecto)
+graphify-out/
+repomix-output.*
+.claude/
+node_modules/
+.DS_Store
+Thumbs.db

@@ -8,7 +8,7 @@
 
 if (defined('MUSA_ARRANQUE')) { return; }
 define('MUSA_ARRANQUE', true);
-define('MUSA_VERSION', '2.0.0');
+define('MUSA_VERSION', '2.1.0');
 
 define('MUSA_RAIZ', str_replace('\\', '/', dirname(__DIR__)));
 define('MUSA_INCLUDES', MUSA_RAIZ . '/wj-includes');

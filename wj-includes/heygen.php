@@ -2,8 +2,8 @@
 /**
  * Musa Café · Cliente de HeyGen LiveAvatar
  * -------------------------------------------------------------
- * HeyGen reemplazó su «Interactive Avatar API» por la plataforma LiveAvatar
- * (api.liveavatar.com). La API anterior dejó de funcionar el 31 de marzo de 2026.
+ * HeyGen reemplaza su «Interactive Avatar API» por la plataforma LiveAvatar (api.liveavatar.com).
+ * Referencia verificada: https://docs.liveavatar.com (openapi.json, sesiones y eventos del modo FULL).
  *
  * Flujo de una conversación (modo FULL):
  *   1. El servidor crea un token de sesión   POST /v1/sessions/token   (X-API-KEY)

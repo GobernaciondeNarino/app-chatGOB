@@ -29,6 +29,21 @@ function musa_conocimiento_cafe() {
         . "- Un café de especialidad obtiene 80 puntos o más en la escala de catación SCA.";
 }
 
+/** Los 64 municipios del departamento de Nariño (lista del formulario de inicio). */
+function musa_municipios_narino() {
+    return array(
+        'Pasto', 'Albán', 'Aldana', 'Ancuya', 'Arboleda', 'Barbacoas', 'Belén', 'Buesaco', 'Chachagüí',
+        'Colón', 'Consacá', 'Contadero', 'Córdoba', 'Cuaspud', 'Cumbal', 'Cumbitara', 'El Charco',
+        'El Peñol', 'El Rosario', 'El Tablón de Gómez', 'El Tambo', 'Francisco Pizarro', 'Funes',
+        'Guachucal', 'Guaitarilla', 'Gualmatán', 'Iles', 'Imués', 'Ipiales', 'La Cruz', 'La Florida',
+        'La Llanada', 'La Tola', 'La Unión', 'Leiva', 'Linares', 'Los Andes', 'Magüí', 'Mallama',
+        'Mosquera', 'Nariño', 'Olaya Herrera', 'Ospina', 'Policarpa', 'Potosí', 'Providencia', 'Puerres',
+        'Pupiales', 'Ricaurte', 'Roberto Payán', 'Samaniego', 'San Andrés de Tumaco', 'San Bernardo',
+        'San Lorenzo', 'San Pablo', 'San Pedro de Cartago', 'Sandoná', 'Santa Bárbara', 'Santacruz',
+        'Sapuyes', 'Taminango', 'Tangua', 'Túquerres', 'Yacuanquer',
+    );
+}
+
 /** Ajustes predeterminados del sistema. */
 function musa_ajustes_predeterminados() {
     return array(
@@ -42,6 +57,10 @@ function musa_ajustes_predeterminados() {
             'fondo'         => 'wj-includes/images/optimizadas/bg.png',
             'barra'         => 'wj-includes/images/optimizadas/bg_barra.png',
             'favicon'       => 'wj-includes/images/optimizadas/logo_musacafe.png',
+            'imagen_fondo'  => '',      // imagen de pantalla completa detrás de todo
+            'opacidad_fondo'=> 35,      // 0 a 100: cuánto se ve la imagen de fondo
+            'logo_entidad'  => '',      // logo de la Gobernación en la franja superior
+            'mostrar_govco' => true,    // franja superior GOV.CO (manual de sitios web)
             'sitio_entidad' => 'https://www.narino.gov.co',
         ),
         'colores' => array(
@@ -58,6 +77,7 @@ function musa_ajustes_predeterminados() {
             'texto_persona'     => '#5A0B16',
             'exito'             => '#2E9E6B',
             'error'             => '#FFB3BC',
+            'institucional'     => '#003366',   // franja GOV.CO y botón de accesibilidad
         ),
         'textos' => array(
             'titulo'            => 'Conversa sobre café',
@@ -72,6 +92,7 @@ function musa_ajustes_predeterminados() {
             'escuchando'        => 'Te escucho…',
             'hablando'          => 'Respondiendo…',
             'transcripcion'     => 'Transcripción de la conversación',
+            'transcripcion_vacia' => 'Pulsa «Iniciar conversación» y pregunta en voz alta o por escrito. Aquí verás lo que digan tú y el anfitrión.',
             'sugerencias'       => 'Puedes preguntar:',
             'formulario_titulo' => 'Antes de empezar, cuéntanos quién eres',
             'formulario_ayuda'  => 'Usaremos estos datos solo para hacer seguimiento a tu conversación.',
@@ -91,6 +112,7 @@ function musa_ajustes_predeterminados() {
             'duracion_maxima'  => 600,
             'sandbox'          => false,
             'retrato'          => 'wj-includes/images/avatar/avatar-cafe.webp',
+            'formato'          => '3/4',        // proporción del marco: 3/4, 1/1, 16/9 o 9/16
             'microfono_inicial'=> true,
             'permitir_escribir'=> true,
         ),
@@ -125,6 +147,8 @@ function musa_ajustes_predeterminados() {
             'telefono_obligatorio' => false,
             'pedir_ciudad'         => true,
             'ciudad_obligatoria'   => false,
+            'ciudad_lista'         => true,    // elegir entre los 64 municipios de Nariño
+            'ciudad_otro'          => true,    // permitir «Otro municipio» (visitantes de fuera)
         ),
         'correo' => array(
             'activo'            => true,

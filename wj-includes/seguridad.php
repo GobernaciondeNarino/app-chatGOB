@@ -2,11 +2,39 @@
 /**
  * Musa Café · Seguridad
  * Sesiones, CSRF, control de intentos y autenticación del panel
- * contra el archivo wj-admin/.htpasswd (el mismo que usa .htaccess).
+ * contra el archivo wj-content/config/.htpasswd (formato de Apache, sirve también para .htaccess).
+ *
+ * El archivo vive en wj-content (la única carpeta escribible y fuera del repositorio).
+ * Si no existe, el panel pide crear la cuenta de administrador en el primer ingreso.
  */
 if (!defined('MUSA_ARRANQUE')) { http_response_code(403); exit('Acceso directo no permitido.'); }
 
-define('MUSA_HTPASSWD', MUSA_ADMIN . '/.htpasswd');
+define('MUSA_HTPASSWD', MUSA_DIR_CONFIG . '/.htpasswd');
+define('MUSA_HTPASSWD_ANTERIOR', MUSA_ADMIN . '/.htpasswd');
+
+/** Trae las credenciales de la versión anterior (wj-admin/.htpasswd) si todavía no se movieron. */
+function musa_htpasswd_migrar() {
+    if (file_exists(MUSA_HTPASSWD) || !file_exists(MUSA_HTPASSWD_ANTERIOR)) { return; }
+    $contenido = @file_get_contents(MUSA_HTPASSWD_ANTERIOR);
+    if ($contenido !== false && trim($contenido) !== '' && @file_put_contents(MUSA_HTPASSWD, $contenido, LOCK_EX) !== false) {
+        @chmod(MUSA_HTPASSWD, 0640);
+        musa_log('Credenciales del panel movidas de wj-admin/.htpasswd a wj-content/config/.htpasswd');
+    }
+}
+
+/** ¿Ya existe una cuenta de administrador? */
+function musa_hay_administrador() {
+    return musa_htpasswd_leer() !== array();
+}
+
+/** Reglas mínimas de la contraseña del panel. Devuelve el error o '' si es válida. */
+function musa_clave_debil($clave, $usuario = '') {
+    $clave = (string) $clave;
+    if (strlen($clave) < 10) { return 'La contraseña debe tener al menos 10 caracteres.'; }
+    if (!preg_match('/[A-Za-z]/', $clave) || !preg_match('/[0-9]/', $clave)) { return 'La contraseña debe combinar letras y números.'; }
+    if ($usuario !== '' && stripos($clave, (string) $usuario) !== false) { return 'La contraseña no puede contener el nombre de usuario.'; }
+    return '';
+}
 
 /** Inicia la sesión con parámetros seguros. */
 function musa_sesion() {
@@ -58,6 +86,7 @@ function musa_exigir_token($token, $json = false) {
 
 /** Lee el archivo .htpasswd como arreglo usuario => hash. */
 function musa_htpasswd_leer() {
+    musa_htpasswd_migrar();
     $usuarios = array();
     if (!file_exists(MUSA_HTPASSWD)) { return $usuarios; }
     $lineas = file(MUSA_HTPASSWD, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
@@ -78,6 +107,7 @@ function musa_htpasswd_guardar($usuario, $clave) {
     if ($usuario === '' || strlen((string) $clave) < 8) { return false; }
     $hash = password_hash($clave, PASSWORD_BCRYPT);
     if ($hash === false) { return false; }
+    if (!is_dir(dirname(MUSA_HTPASSWD))) { @mkdir(dirname(MUSA_HTPASSWD), 0775, true); }
     $contenido = "# Musa Café · credenciales del panel wj-admin\n";
     $contenido .= "# Generado el " . date('Y-m-d H:i:s') . " · cifrado bcrypt\n";
     $contenido .= $usuario . ':' . $hash . "\n";
@@ -205,9 +235,11 @@ function musa_usuario_apache() {
 function musa_exigir_admin() {
     musa_sesion();
 
-    if (!file_exists(MUSA_HTPASSWD)) {
-        http_response_code(500);
-        exit('Falta el archivo wj-admin/.htpasswd. Consulta el README.md para crearlo.');
+    // Sin cuenta de administrador (instalación recién descargada): acceso.php pide crearla.
+    if (!musa_hay_administrador()) {
+        $destino = musa_url('wj-admin/acceso.php');
+        if (!headers_sent()) { header('Location: ' . $destino); }
+        exit('<a href="' . musa_e($destino) . '">Configurar el panel</a>');
     }
 
     // Credenciales enviadas por cabecera (las valide Apache o las mande el navegador):
