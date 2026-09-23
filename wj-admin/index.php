@@ -30,8 +30,12 @@ musa_panel_inicio('Conversaciones', 'registros');
 musa_panel_mensaje();
 ?>
 
-<?php if (!musa_heygen_configurado($ajustesPanel)) : ?>
-  <div class="alerta error">Falta la clave de API de HeyGen LiveAvatar: el avatar no puede atender a nadie. Configúrala en <a href="api.php">API HeyGen</a>.</div>
+<?php if (!musa_motor_disponible($ajustesPanel)) : ?>
+  <?php if (musa_motor($ajustesPanel) === 'liveavatar') : ?>
+    <div class="alerta error">Falta la clave de API de HeyGen LiveAvatar: el avatar no puede atender a nadie. Configúrala en <a href="api.php">HeyGen LiveAvatar</a> o cambia al motor económico en <a href="motor.php">Motor y APIs</a>.</div>
+  <?php else : ?>
+    <div class="alerta error">Falta configurar la IA de texto del motor económico: el avatar no puede atender a nadie. Configúrala en <a href="motor.php">Motor y APIs</a>.</div>
+  <?php endif; ?>
 <?php endif; ?>
 <?php if (file_exists(MUSA_DIR_CONFIG . '/claves.php')) : ?>
   <div class="alerta error">El archivo <code>wj-content/config/claves.php</code> todavía existe y guarda la clave de API en texto plano. Ya no se usa (la clave vive en los ajustes): bórralo desde el Administrador de archivos de Plesk.</div>

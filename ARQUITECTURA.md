@@ -1,4 +1,4 @@
-# QuéDice! · Documento técnico (versión 2.4.0)
+# QuéDice! · Documento técnico (versión 2.5.0)
 
 Complemento del `README.md` para quien vaya a mantener o ampliar el sistema.
 
@@ -12,13 +12,70 @@ Complemento del `README.md` para quien vaya a mantener o ampliar el sistema.
   la única carpeta escribible).
 - **Todo configurable.** La interfaz no tiene textos, colores ni temas escritos en el código: se
   leen de `wj-content/config/ajustes.json.php`.
-- **La clave de API no sale del servidor.** El navegador recibe solo la URL y el token de la sala
-  LiveKit de su propia sesión.
+- **Las claves de API no salen del servidor.** Con LiveAvatar el navegador recibe solo la URL y el
+  token de la sala LiveKit de su propia sesión; con el motor económico solo habla con este sitio.
+- **Dos motores intercambiables** (`motor.tipo`): `economico` (predeterminado, `wj-includes/motor.php`)
+  y `liveavatar` (`wj-includes/heygen.php`). Comparten formulario, límites, almacenamiento, panel y
+  transcripción; `app.js` elige el flujo con `MUSA_CONFIG.motor`.
 - **Degradación elegante.** Sin WebGL, la escena 3D se omite; sin micrófono, la persona escribe.
 
 ---
 
 ## 2. Flujo de una conversación
+
+### Motor económico
+
+```
+Navegador                          Servidor PHP                         APIs
+   │ GET / (videos en bucle, sin LiveKit; CSP connect-src 'self')          │
+   │ POST api/sesion.php ───────────► │ valida, límites, crea registro      │
+   │ ◄── código, clave, duración, saludo {texto, audio}  (saludo en caché)  │
+   │ reproduce el audio: video «hablando» mientras suena                    │
+   │ escucha: SpeechRecognition del navegador                               │
+   │   (o graba → POST api/transcribir.php ─► │ ElevenLabs Scribe ─────────►│ POST /v1/speech-to-text)
+   │ POST api/responder.php {pregunta} ─────► │ reserva turno y tope global │
+   │                                  │ IA (tema + últimos turnos) ────────►│ POST {base}/chat/completions
+   │                                  │ limpia el texto para voz            │
+   │                                  │ voz ───────────────────────────────►│ ElevenLabs /v1/text-to-speech/{voz}
+   │                                  │                                     │  o Gemini /v1beta/interactions
+   │                                  │ guarda pregunta y respuesta (fuente: servidor)
+   │ ◄── {texto, audio base64, tipo, voz: servidor|navegador}               │
+   │ POST api/mantener.php (60 s) ──► │ renueva el latido                   │
+   │ POST api/finalizar.php ────────► │ cierra el registro                  │
+```
+
+- Sin audio del servidor (voz del navegador elegida, o error de ElevenLabs/Gemini), `voz` llega como
+  `navegador` y `app.js` lee el texto con `speechSynthesis` en frases cortas.
+- El saludo y las respuestas de las preguntas sugeridas se guardan en `wj-content/datos/voz/`
+  (`musa_voz_cache_*`, máximo 200 archivos; la clave incluye el tema, el modelo y la voz).
+- `musa_uso_ia_reservar()` aplica `seguridad.respuestas_por_hora` y `seguridad.respuestas_por_ip_hora`,
+  y `musa_uso_escucha_reservar()` los segundos de Scribe (`seguridad.escucha_minutos_hora`), con
+  bloqueo de archivo de espera acotada (`datos/uso-ia.json.php`), que también guarda respuestas,
+  caracteres y segundos de escucha por día.
+- `musa_audio_segundos()` mide la duración que decodificará Scribe: en WebM recorre los bloques del
+  contenedor (solo `A_OPUS`, sin *lacing*) y suma la duración de cada paquete según su byte TOC
+  (RFC 6716 §3.1); en WAV usa el tamaño de los datos y los bytes por segundo.
+- Las preguntas sugeridas se responden sin historial y su respuesta vence a los 30 días.
+
+| Función | Endpoint | Autenticación |
+|---|---|---|
+| `musa_ia_responder()` | `POST {base}/chat/completions` (`reasoning_effort` opcional) | `Authorization: Bearer` |
+| `musa_ia_verificar()` | `GET {base}/models` | `Authorization: Bearer` |
+| `musa_elevenlabs_tts()` | `POST https://api.elevenlabs.io/v1/text-to-speech/{voice_id}?output_format=mp3_44100_64` | `xi-api-key` |
+| `musa_elevenlabs_transcribir()` | `POST /v1/speech-to-text` (multipart, `model_id=scribe_v2`) | `xi-api-key` |
+| `musa_elevenlabs_verificar()` | `GET /v1/user/subscription`, `GET /v1/voices/{id}` | `xi-api-key` |
+| `musa_elevenlabs_voces()` | `GET /v2/voices?page_size=100` | `xi-api-key` |
+| `musa_gemini_tts()` | `POST https://generativelanguage.googleapis.com/v1beta/interactions` (`response_format: audio`) | `x-goog-api-key` |
+
+Bases de la IA: Gemini `https://generativelanguage.googleapis.com/v1beta/openai`, Hugging Face
+`https://router.huggingface.co/v1`, o una propia (`https://…` o `http://127.0.0.1…` para Ollama).
+Gemini TTS devuelve WAV o PCM L16 de 24 kHz; el PCM se envuelve en WAV (`musa_wav()`).
+
+**Prueba local:** `php -d auto_prepend_file=prepend.php -S …` con un `prepend.php` que defina
+`MUSA_ELEVENLABS_API` y `MUSA_GEMINI_API` hacia un simulador local; la IA se apunta con el proveedor
+«Otra API» a `http://127.0.0.1:puerto/v1`. En producción esas constantes son fijas.
+
+### LiveAvatar
 
 ```
 Navegador                         Servidor PHP                        LiveAvatar
@@ -119,10 +176,12 @@ Todas las respuestas son JSON. Todas exigen el token CSRF de la página (`token`
 
 | Punto | Cuerpo | Respuesta |
 |---|---|---|
-| `POST sesion.php` | `nombre, correo, telefono, ciudad, autorizacion, sitio_web` | `codigo, clave, session_id, livekit_url, livekit_token, duracion` · 422 errores del formulario · 429 límite por origen · 503 cupo global, archivo lleno o sin clave · 502 LiveAvatar |
-| `POST mensajes.php` | `codigo, clave, mensajes: [{rol, texto, origen, ref}]` | `total` · 409 conversación cerrada o vencida |
+| `POST sesion.php` | `nombre, correo, telefono, ciudad, autorizacion, sitio_web` | `motor, codigo, clave, duracion` y, según el motor, `saludo {texto, audio, tipo, voz}` o `session_id, livekit_url, livekit_token` · 422 errores del formulario · 429 límite por origen · 503 cupo global, archivo lleno o motor sin configurar · 502 LiveAvatar |
+| `POST responder.php` | `codigo, clave, pregunta, origen` (motor económico) | `texto, audio, tipo, voz, restantes` · 429 muy seguido o máximo de preguntas (`fin: true`) · 409 cerrada · 503 tope global por hora · 502 la IA no respondió |
+| `POST transcribir.php` | multipart `token, codigo, clave, audio` (WebM/Opus o WAV, ≤ 512 KB y ≤ 30 s medidos con `musa_audio_segundos()`) | `texto` · 413 muy largo · 415 formato · 429 · 503 sin clave, respaldo desactivado o tope de minutos por hora |
+| `POST mensajes.php` | `codigo, clave, mensajes: [{rol, texto, origen, ref}]` | `total` · 409 conversación cerrada o vencida. En el motor económico no guarda nada. |
 | `POST mantener.php` | `codigo, clave` | `ok` · 429 si hubo otro keep-alive hace menos de 25 s |
-| `POST finalizar.php` | `codigo, clave, motivo, mensajes` | `codigo, preguntas` |
+| `POST finalizar.php` | `codigo, clave, motivo, mensajes` | `codigo, preguntas` (en el motor económico se ignoran los `mensajes`) |
 
 - `clave` es un token aleatorio de 32 caracteres creado con la conversación: sin él no se puede
   escribir en una conversación ajena.
@@ -131,7 +190,8 @@ Todas las respuestas son JSON. Todas exigen el token CSRF de la página (`token`
 - `rol` solo puede ser `persona` o `avatar`; los textos se limpian (UTF-8 inválido, controles,
   caracteres invisibles y U+2028) y se cortan a 1 000 (persona) o 2 000 (avatar) caracteres, con un
   tope de 64 KB por conversación; `ref` evita duplicados cuando un lote se reintenta.
-- Todo lo que llega del navegador se guarda con `fuente: navegador`. Al cerrar, el servidor pide la
+- En el motor económico el servidor guarda cada pregunta y respuesta con `fuente: servidor`
+  (verificadas). En LiveAvatar, todo lo que llega del navegador se guarda con `fuente: navegador`. Al cerrar, el servidor pide la
   transcripción oficial (`musa_conversacion_aplicar_oficial()`): sus mensajes quedan con
   `fuente: liveavatar` y reemplazan las respuestas del avatar enviadas por el navegador; de estas
   solo se conservan las preguntas escritas. El correo usa `musa_conversacion_para_correo()`.
@@ -230,8 +290,11 @@ el resumen por correo desde el panel.
 | Otro tema de conversación | Solo desde el panel: **Avatar y tema** (tema, conocimiento, saludo y sugerencias). |
 | Usar un agente de voz guardado en LiveAvatar | Reemplazar `avatar_persona` por `voice_agent: { id }` en `musa_heygen_sesion_cuerpo()`. |
 | Reaccionar a un evento nuevo de LiveAvatar | `alEvento()` en `wj-includes/js/app.js`. |
+| Otro proveedor de IA con dirección fija | `musa_ia_presets()` en `wj-includes/motor.php` (si es compatible con OpenAI no hace falta más). |
+| Otro proveedor de voz | Una función como `musa_elevenlabs_tts()` que devuelva `ok, audio, tipo` y su caso en `musa_voz_sintetizar()`, `musa_voz_proveedor()` y `wj-admin/motor.php`. |
+| Cambiar los videos del avatar | **Motor y APIs → Videos del avatar** (MP4 o WebM; si existe el mismo nombre en el otro formato, se ofrecen ambos). |
 | Cambiar la escena 3D | Módulo `Escena` en `wj-includes/js/app.js`. |
 
 ---
 
-Gobernación de Nariño · QuéDice! · versión 2.4.0
+Gobernación de Nariño · QuéDice! · versión 2.5.0

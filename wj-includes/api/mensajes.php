@@ -8,6 +8,10 @@ require_once __DIR__ . '/comun.php';
 $datos = musa_api_preparar();
 $c = musa_api_conversacion($datos);
 
+// Motor económico: el servidor ya guardó cada pregunta y respuesta; nada del navegador se agrega.
+if ($c['motor'] === 'economico') {
+    musa_responder_json(array('ok' => true, 'total' => count($c['mensajes'])));
+}
 if (in_array($c['estado'], array('finalizada', 'error'), true) || musa_conversacion_vencida($c)) {
     musa_responder_json(array('ok' => false, 'mensaje' => 'La conversación ya terminó.'), 409);
 }

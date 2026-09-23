@@ -506,8 +506,9 @@ function musa_nonce() {
  * Cabeceras de seguridad.
  * $tipo 'publica' = página del avatar (micrófono, Google Fonts, sala LiveKit); 'panel' = wj-admin.
  * La CSP solo permite scripts y estilos propios o con el nonce de la página: un texto inyectado no
- * puede ejecutar código. connect-src admite https:/wss: porque el servidor de video (LiveKit) lo
- * asigna LiveAvatar en cada sesión y su dominio no está documentado.
+ * puede ejecutar código. Con LiveAvatar, connect-src admite https:/wss: porque el servidor de video
+ * (LiveKit) lo asigna LiveAvatar en cada sesión y su dominio no está documentado; con el motor
+ * económico queda en 'self'.
  */
 function musa_cabeceras_seguridad($tipo = 'panel') {
     if (headers_sent()) { return; }
@@ -521,14 +522,20 @@ function musa_cabeceras_seguridad($tipo = 'panel') {
     if (musa_es_https()) { header('Strict-Transport-Security: max-age=31536000'); }
     $n = musa_nonce();
     if ($publica) {
-        $conexiones = "'self' https: wss:";
-        $endpoint = (string) musa_dato(musa_ajustes(), 'heygen.endpoint', '');
-        if (preg_match('#^http://(localhost|127\.0\.0\.1)#i', $endpoint)) { $conexiones .= ' ws://127.0.0.1:* ws://localhost:*'; }   // simulador local
+        // Motor económico: el navegador solo habla con este servidor (las APIs se llaman desde PHP).
+        // LiveAvatar: la sala LiveKit que asigna en cada sesión (dominio variable).
+        $conexiones = "'self'";
+        if (musa_motor() === 'liveavatar') {
+            $conexiones = "'self' https: wss:";
+            $endpoint = (string) musa_dato(musa_ajustes(), 'heygen.endpoint', '');
+            if (preg_match('#^http://(localhost|127\.0\.0\.1)#i', $endpoint)) { $conexiones .= ' ws://127.0.0.1:* ws://localhost:*'; }   // simulador local
+        }
         header("Content-Security-Policy: default-src 'self'; script-src 'self' 'nonce-$n'; style-src 'self' 'nonce-$n' https://fonts.googleapis.com; "
             . "font-src 'self' https://fonts.gstatic.com; img-src 'self' data:; media-src 'self' blob:; connect-src $conexiones; "
             . "worker-src 'self' blob:; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'self'");
     } else {
+        // media-src: muestras de voz de ElevenLabs (https) y la prueba de voz generada en el panel (data:).
         header("Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: https:; "
-            . "connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'self'");
+            . "media-src 'self' data: https:; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'self'");
     }
 }

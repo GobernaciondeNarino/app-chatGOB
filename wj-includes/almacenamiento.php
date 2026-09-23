@@ -79,11 +79,16 @@ function musa_conversacion_base() {
         'autorizacion'   => false,
         'tema'           => '',
         'avatar_id'      => '',
+        'motor'          => 'liveavatar',  // liveavatar | economico (registros anteriores: liveavatar)
         'session_id'     => '',
         'estado'         => 'iniciando',   // iniciando | activa | finalizada | error
         'motivo_fin'     => '',
-        'mensajes'       => array(),       // [{rol: persona|avatar, texto, hora, origen: voz|texto, fuente: navegador|liveavatar}]
+        'mensajes'       => array(),       // [{rol: persona|avatar, texto, hora, origen: voz|texto, fuente: navegador|liveavatar|servidor}]
         'ultimo_mantener'=> '',
+        'preguntas_ia'   => 0,             // preguntas respondidas por el motor económico
+        'ultima_pregunta'=> 0,             // marca de tiempo (Unix) de la última pregunta reservada
+        'transcripciones'=> 0,             // audios enviados a ElevenLabs Scribe
+        'ultimo_audio'   => 0,
         'creado'         => false,
         'enviado'        => false,
         'fecha_creado'   => '',
@@ -298,9 +303,12 @@ function musa_conversacion_aplicar_oficial($identificador, $oficial) {
     });
 }
 
-/** ¿El mensaje del avatar está verificado con la transcripción oficial? */
+/**
+ * ¿El mensaje del avatar está verificado? Sí cuando viene de la transcripción oficial de LiveAvatar
+ * o cuando lo generó el propio servidor (motor económico); no cuando solo lo informó el navegador.
+ */
 function musa_mensaje_verificado($m) {
-    return ($m['rol'] ?? '') !== 'avatar' || ($m['fuente'] ?? '') === 'liveavatar';
+    return ($m['rol'] ?? '') !== 'avatar' || in_array($m['fuente'] ?? '', array('liveavatar', 'servidor'), true);
 }
 
 /** Quita direcciones web de un texto escrito por el visitante antes de enviarlo por correo. */
@@ -311,15 +319,16 @@ function musa_sin_enlaces($texto) {
 
 /**
  * Copia de la conversación apta para el correo institucional: sin respuestas del avatar que no
- * estén verificadas y sin enlaces en lo que escribió o dijo el visitante (evita que el correo
- * oficial sirva para enviar phishing a la dirección que el visitante haya escrito).
+ * estén verificadas y sin enlaces en ningún mensaje (evita que el correo oficial sirva para enviar
+ * phishing a la dirección que el visitante haya escrito: también la respuesta de una IA se puede
+ * manipular con la pregunta para que incluya una dirección).
  */
 function musa_conversacion_para_correo($c) {
     $c['nombre'] = musa_sin_enlaces($c['nombre'] ?? '');
     $mensajes = array();
     foreach ((array) ($c['mensajes'] ?? array()) as $m) {
         if (!musa_mensaje_verificado($m)) { continue; }
-        if (($m['rol'] ?? '') === 'persona') { $m['texto'] = musa_sin_enlaces($m['texto'] ?? ''); }
+        $m['texto'] = musa_sin_enlaces($m['texto'] ?? '');
         $mensajes[] = $m;
     }
     $c['mensajes'] = $mensajes;
@@ -343,6 +352,32 @@ function musa_conversacion_reservar_mantener($identificador) {
             return array('datos' => $datos, 'retorno' => true);
         }
         return array('retorno' => false);
+    });
+}
+
+/**
+ * Reserva el turno de una pregunta del motor económico, de forma atómica: la conversación debe estar
+ * activa, no superar el máximo de preguntas y dejar al menos $intervalo segundos entre preguntas.
+ * $campo: 'preguntas_ia' (respuestas de la IA) o 'transcripciones' (audios para ElevenLabs Scribe).
+ * Devuelve 'ok', 'cerrada', 'maximo' o 'rapido'.
+ */
+function musa_conversacion_reservar_pregunta($identificador, $maximo, $intervalo = 2, $campo = 'preguntas_ia') {
+    $campo = $campo === 'transcripciones' ? 'transcripciones' : 'preguntas_ia';
+    return musa_conversaciones_transaccion(function ($datos) use ($identificador, $maximo, $intervalo, $campo) {
+        foreach ($datos['conversaciones'] as $i => $c) {
+            if (!musa_conversacion_coincide($c, $identificador)) { continue; }
+            $c = array_merge(musa_conversacion_base(), $c);
+            if (!in_array($c['estado'], array('activa', 'iniciando'), true)) { return array('retorno' => 'cerrada'); }
+            if ((int) $c[$campo] >= $maximo) { return array('retorno' => 'maximo'); }
+            $marca = $campo === 'preguntas_ia' ? 'ultima_pregunta' : 'ultimo_audio';
+            if ((int) ($c[$marca] ?? 0) > time() - $intervalo) { return array('retorno' => 'rapido'); }
+            $c[$campo] = (int) $c[$campo] + 1;
+            $c[$marca] = time();
+            $c['actualizado'] = date('Y-m-d H:i:s');
+            $datos['conversaciones'][$i] = $c;
+            return array('datos' => $datos, 'retorno' => 'ok');
+        }
+        return array('retorno' => 'cerrada');
     });
 }
 

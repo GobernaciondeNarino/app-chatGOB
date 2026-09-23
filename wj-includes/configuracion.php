@@ -1,8 +1,8 @@
 <?php
 /**
  * QuéDice! · Configuración
- * Todo lo configurable (avatar, tema, colores, imágenes, logos, formulario,
- * API de HeyGen y correo) vive en wj-content/config/ajustes.json.php
+ * Todo lo configurable (avatar, tema, motor y APIs, colores, imágenes, logos,
+ * formulario y correo) vive en wj-content/config/ajustes.json.php
  * y se edita desde wj-admin.
  */
 if (!defined('MUSA_ARRANQUE')) { http_response_code(403); exit('Acceso directo no permitido.'); }
@@ -92,6 +92,7 @@ function musa_ajustes_predeterminados() {
             'conectando'        => 'Preparando al anfitrión…',
             'escuchando'        => 'Te escucho…',
             'hablando'          => 'Respondiendo…',
+            'pensando'          => 'Pensando…',
             'transcripcion'     => 'Transcripción de la conversación',
             'transcripcion_vacia' => 'Pulsa «Iniciar conversación» y pregunta en voz alta o por escrito. Aquí verás lo que digan tú y el anfitrión.',
             'sugerencias'       => 'Puedes preguntar:',
@@ -132,6 +133,54 @@ function musa_ajustes_predeterminados() {
                 '¿Qué es un café de especialidad?',
             ),
             'enlaces'      => array(),
+        ),
+        // Motor del avatar: «economico» (IA de texto + voz + videos en bucle, céntimos por conversación)
+        // o «liveavatar» (avatar en vivo de HeyGen, ≈ USD 0,20-0,25 por minuto). Se elige en wj-admin → Motor y APIs.
+        'motor' => array(
+            'tipo' => 'economico',
+        ),
+        // IA de texto del motor económico: cualquier API compatible con OpenAI (Chat Completions).
+        'ia' => array(
+            'proveedor'    => 'gemini',                  // gemini | huggingface | personalizado
+            'base_url'     => '',                        // solo para «personalizado»
+            'modelo'       => 'gemini-3.1-flash-lite',
+            'api_key'      => '',
+            'razonamiento' => 'minimal',                 // reasoning_effort: '' (no enviar), none, minimal, low
+            'temperatura'  => 0.5,
+            'historial'    => 6,                         // turnos anteriores que recibe la IA como contexto
+        ),
+        // Voz del avatar en el motor económico.
+        'voz' => array(
+            'proveedor' => 'elevenlabs',                 // elevenlabs | gemini | navegador
+            'elevenlabs' => array(
+                'api_key'     => '',
+                'voice_id'    => '',                     // vacío = voz de ejemplo de la documentación
+                'modelo'      => 'eleven_flash_v2_5',
+                'velocidad'   => 1.0,
+                'estabilidad' => 0.5,
+                'similitud'   => 0.75,
+            ),
+            'gemini' => array(
+                'api_key' => '',                         // vacío = la misma clave de la IA si el proveedor es Gemini
+                'modelo'  => 'gemini-3.8-flash-lite-tts',
+                'voz'     => 'Orus',
+                'estilo'  => 'cálido, cercano y amable, con acento colombiano',
+            ),
+            'navegador' => array(
+                'idioma'    => 'es-CO',
+                'velocidad' => 1.0,
+            ),
+        ),
+        // Cómo se escucha a la persona en el motor económico.
+        'escucha' => array(
+            'proveedor' => 'navegador',                  // navegador | elevenlabs (Scribe)
+            'idioma'    => 'es-CO',
+            'respaldo'  => true,                         // Scribe en navegadores sin reconocimiento de voz (Firefox)
+        ),
+        // Videos en bucle del avatar (motor económico): en reposo y hablando.
+        'animacion' => array(
+            'reposo'   => 'wj-includes/images/avatar/avatar-reposo.mp4',
+            'hablando' => 'wj-includes/images/avatar/avatar-hablando.mp4',
         ),
         'heygen' => array(
             'api_key'        => '',
@@ -176,6 +225,10 @@ function musa_ajustes_predeterminados() {
             'maximo_activas'      => 15,    // conversaciones abiertas al mismo tiempo (cupo de LiveAvatar)
             'exigir_aceptacion'   => true,
             'maximo_mensajes'     => 400,
+            'maximo_preguntas'    => 30,    // preguntas por conversación (motor económico)
+            'respuestas_por_hora' => 600,   // respuestas de la IA por hora sumando a todas las personas (tope de gasto)
+            'respuestas_por_ip_hora' => 120, // respuestas por hora de un mismo origen (IP o /64 de IPv6)
+            'escucha_minutos_hora' => 30,   // minutos de audio por hora que se pueden enviar a ElevenLabs Scribe
             // IPs de proxys propios (balanceador, CDN) cuyas cabeceras X-Real-IP
             // o CF-Connecting-IP sí se pueden creer. Vacío = usar solo REMOTE_ADDR.
             'proxies_confiables'  => array(),
@@ -199,7 +252,10 @@ function musa_claves_locales() {
     $archivo = MUSA_DIR_CONFIG . '/claves.php';
     if (!file_exists($archivo)) { return array(); }
     $datos = include $archivo;
-    return is_array($datos) ? $datos : array();
+    if (!is_array($datos)) { return array(); }
+    // Los textos de ejemplo («TU_CLAVE_…») que no se reemplazaron no se toman como claves.
+    array_walk_recursive($datos, function (&$valor) { if (is_string($valor) && strpos($valor, 'TU_CLAVE') === 0) { $valor = ''; } });
+    return $datos;
 }
 
 /** Devuelve los ajustes vigentes (predeterminados + guardados). */
@@ -219,7 +275,9 @@ function musa_ajustes($recargar = false) {
         return $ajustes;
     }
     $guardados = musa_leer_json(MUSA_ARCHIVO_AJUSTES, array());
-    if (isset($guardados['generos']) || isset($guardados['ia'])) {
+    // Versión 1 (canciones): tenía «generos» y un grupo «ia» distinto del actual (sin «modelo»).
+    $iaV1 = isset($guardados['ia']) && is_array($guardados['ia']) && !array_key_exists('modelo', $guardados['ia']);
+    if (isset($guardados['generos']) || $iaV1) {
         $guardados = musa_migrar_ajustes_v1($guardados);
         musa_escribir_json(MUSA_ARCHIVO_AJUSTES, musa_combinar($predeterminados, $guardados));
     }
