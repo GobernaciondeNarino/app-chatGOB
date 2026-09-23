@@ -1,6 +1,6 @@
 <?php
 /**
- * Musa Café · Configuración
+ * QuéDice! · Configuración
  * Todo lo configurable (avatar, tema, colores, imágenes, logos, formulario,
  * API de HeyGen y correo) vive en wj-content/config/ajustes.json.php
  * y se edita desde wj-admin.
@@ -29,35 +29,58 @@ function musa_conocimiento_cafe() {
         . "- Un café de especialidad obtiene 80 puntos o más en la escala de catación SCA.";
 }
 
+/** Los 64 municipios del departamento de Nariño (lista del formulario de inicio). */
+function musa_municipios_narino() {
+    return array(
+        'Pasto', 'Albán', 'Aldana', 'Ancuya', 'Arboleda', 'Barbacoas', 'Belén', 'Buesaco', 'Chachagüí',
+        'Colón', 'Consacá', 'Contadero', 'Córdoba', 'Cuaspud', 'Cumbal', 'Cumbitara', 'El Charco',
+        'El Peñol', 'El Rosario', 'El Tablón de Gómez', 'El Tambo', 'Francisco Pizarro', 'Funes',
+        'Guachucal', 'Guaitarilla', 'Gualmatán', 'Iles', 'Imués', 'Ipiales', 'La Cruz', 'La Florida',
+        'La Llanada', 'La Tola', 'La Unión', 'Leiva', 'Linares', 'Los Andes', 'Magüí', 'Mallama',
+        'Mosquera', 'Nariño', 'Olaya Herrera', 'Ospina', 'Policarpa', 'Potosí', 'Providencia', 'Puerres',
+        'Pupiales', 'Ricaurte', 'Roberto Payán', 'Samaniego', 'San Andrés de Tumaco', 'San Bernardo',
+        'San Lorenzo', 'San Pablo', 'San Pedro de Cartago', 'Sandoná', 'Santa Bárbara', 'Santacruz',
+        'Sapuyes', 'Taminango', 'Tangua', 'Túquerres', 'Yacuanquer',
+    );
+}
+
 /** Ajustes predeterminados del sistema. */
 function musa_ajustes_predeterminados() {
     return array(
         'marca' => array(
-            'nombre'        => 'Musa Café',
+            'nombre'        => 'QuéDice!',
             'eslogan'       => 'Conversa con nuestro anfitrión',
             'entidad'       => 'Gobernación de Nariño',
-            'titulo_sitio'  => 'Musa Café · Conversa sobre café',
+            'titulo_sitio'  => 'QuéDice! · Conversa sobre café',
             'descripcion'   => 'Un anfitrión virtual que conversa contigo sobre el café de Nariño.',
-            'logo'          => 'wj-includes/images/optimizadas/logo_musacafe.png',
+            'logo'          => 'wj-includes/images/quedice/logo-quedice.png',
             'fondo'         => 'wj-includes/images/optimizadas/bg.png',
             'barra'         => 'wj-includes/images/optimizadas/bg_barra.png',
-            'favicon'       => 'wj-includes/images/optimizadas/logo_musacafe.png',
+            'favicon'       => 'wj-includes/images/quedice/icono-quedice.png',
+            'imagen_fondo'  => '',      // imagen de pantalla completa detrás de todo
+            'opacidad_fondo'=> 35,      // 0 a 100: cuánto se ve la imagen de fondo
+            'logo_entidad'  => '',      // logo de la Gobernación en la franja superior
+            'mostrar_govco' => true,    // franja superior GOV.CO (manual de sitios web)
             'sitio_entidad' => 'https://www.narino.gov.co',
         ),
         'colores' => array(
-            'fondo'             => '#AE1D2C',
-            'fondo_profundo'    => '#7E0E1C',
-            'tarjeta'           => '#9F1427',
-            'tarjeta_borde'     => '#C3364A',
-            'texto'             => '#F7EFE0',
-            'texto_suave'       => '#EBC9CE',
-            'acento'            => '#F2B705',
-            'texto_sobre_acento'=> '#3A0A10',
-            'acento_secundario' => '#12A5C4',
-            'burbuja_persona'   => '#F6EDD9',
-            'texto_persona'     => '#5A0B16',
-            'exito'             => '#2E9E6B',
+            // Paleta institucional (Manual de Identidad Visual de la Gobernación de Nariño, 2024):
+            // verde #10A13B, amarillo #FFD500 y azul #003366; los verdes de fondo se oscurecieron
+            // lo necesario para que todo el texto cumpla contraste AA (mínimo 4.5:1).
+            'fondo'             => '#0B7A2E',
+            'fondo_profundo'    => '#003366',
+            'tarjeta'           => '#0A5C2A',
+            'tarjeta_borde'     => '#10A13B',
+            'texto'             => '#FFFFFF',
+            'texto_suave'       => '#EAF5EC',
+            'acento'            => '#FFD500',
+            'texto_sobre_acento'=> '#1A1A1A',
+            'acento_secundario' => '#4FC3F7',
+            'burbuja_persona'   => '#FFFFFF',
+            'texto_persona'     => '#003366',
+            'exito'             => '#10A13B',
             'error'             => '#FFB3BC',
+            'institucional'     => '#003366',   // franja GOV.CO y botón de accesibilidad
         ),
         'textos' => array(
             'titulo'            => 'Conversa sobre café',
@@ -72,6 +95,7 @@ function musa_ajustes_predeterminados() {
             'escuchando'        => 'Te escucho…',
             'hablando'          => 'Respondiendo…',
             'transcripcion'     => 'Transcripción de la conversación',
+            'transcripcion_vacia' => 'Pulsa «Iniciar conversación» y pregunta en voz alta o por escrito. Aquí verás lo que digan tú y el anfitrión.',
             'sugerencias'       => 'Puedes preguntar:',
             'formulario_titulo' => 'Antes de empezar, cuéntanos quién eres',
             'formulario_ayuda'  => 'Usaremos estos datos solo para hacer seguimiento a tu conversación.',
@@ -79,10 +103,10 @@ function musa_ajustes_predeterminados() {
             'despedida_texto'   => 'Tu conversación quedó registrada. Puedes iniciar otra cuando quieras.',
             'aviso_datos'       => 'Autorizo el tratamiento de mis datos personales conforme a la Ley 1581 de 2012 y la política de la Gobernación de Nariño.',
             'aviso_microfono'   => 'Para hablar con el anfitrión, permite el uso del micrófono. También puedes escribir tus preguntas.',
-            'pie'               => 'Gobernación de Nariño · Musa Café',
+            'pie'               => 'Gobernación de Nariño · QuéDice!',
         ),
         'avatar' => array(
-            'nombre'           => 'Anfitrión Musa Café',
+            'nombre'           => 'Anfitrión de QuéDice!',
             'avatar_id'        => '56aa5373edb14809a1572b36af99b94c',
             'voice_id'         => '5fab49b6cbd84b2cb0320fd28f9e49de',
             'idioma'           => 'es',
@@ -91,14 +115,15 @@ function musa_ajustes_predeterminados() {
             'duracion_maxima'  => 600,
             'sandbox'          => false,
             'retrato'          => 'wj-includes/images/avatar/avatar-cafe.webp',
+            'formato'          => '3/4',        // proporción del marco: 3/4, 1/1, 16/9 o 9/16
             'microfono_inicial'=> true,
             'permitir_escribir'=> true,
         ),
         'tema' => array(
             'nombre'       => 'Café',
-            'titulo'       => 'Musa Café · Café de Nariño',
-            'personalidad' => 'Eres el anfitrión de Musa Café, un espacio de la Gobernación de Nariño. Eres cálido, cercano y orgulloso de la tradición cafetera nariñense. Hablas en español de Colombia, con un tono amable y sencillo, como quien conversa con un visitante mientras le sirve una taza de café.',
-            'saludo'       => '¡Hola! Bienvenido a Musa Café. Soy tu anfitrión y me encanta hablar del café de Nariño. ¿Qué te gustaría saber?',
+            'titulo'       => 'QuéDice! · Café de Nariño',
+            'personalidad' => 'Eres el anfitrión de QuéDice!, un espacio de la Gobernación de Nariño para conversar. Hoy el tema es el café. Eres cálido, cercano y orgulloso de la tradición cafetera nariñense. Hablas en español de Colombia, con un tono amable y sencillo, como quien conversa con un visitante mientras le sirve una taza de café.',
+            'saludo'       => '¡Hola! Te doy la bienvenida a QuéDice! Soy tu anfitrión y hoy hablamos del café de Nariño. ¿Qué te gustaría saber?',
             'conocimiento' => musa_conocimiento_cafe(),
             'reglas'       => "- Habla solo del tema configurado. Si te preguntan por otra cosa, responde con amabilidad que tu especialidad es el tema y ofrece una pregunta relacionada.\n- Responde en máximo tres frases cortas, fáciles de escuchar.\n- No inventes datos: si no sabes algo, dilo con sencillez.\n- No des opiniones políticas, médicas ni legales.\n- No pidas datos personales.",
             'maximo_palabras' => 60,
@@ -125,15 +150,17 @@ function musa_ajustes_predeterminados() {
             'telefono_obligatorio' => false,
             'pedir_ciudad'         => true,
             'ciudad_obligatoria'   => false,
+            'ciudad_lista'         => true,    // elegir entre los 64 municipios de Nariño
+            'ciudad_otro'          => true,    // permitir «Otro municipio» (visitantes de fuera)
         ),
         'correo' => array(
             'activo'            => true,
             'metodo'            => 'mail',
             'remitente'         => 'no-responder@narino.gov.co',
-            'nombre_remitente'  => 'Musa Café · Gobernación de Nariño',
+            'nombre_remitente'  => 'QuéDice! · Gobernación de Nariño',
             'responder_a'       => '',
             'copia_oculta'      => '',
-            'asunto'            => 'Tu conversación en Musa Café',
+            'asunto'            => 'Tu conversación en QuéDice!',
             'incluir_conversacion' => true,
             'mensaje'           => "Hola {nombre},\n\nGracias por conversar con nuestro anfitrión sobre {tema}.\nEste es el resumen de tus preguntas y las respuestas que recibiste.\n\nCódigo de la conversación: {codigo}\n\nGobernación de Nariño",
             'smtp' => array(

@@ -1,6 +1,6 @@
 <?php
 /**
- * Musa Café · Configuración y verificación de la API de HeyGen LiveAvatar
+ * QuéDice! · Configuración y verificación de la API de HeyGen LiveAvatar
  */
 require_once __DIR__ . '/comun.php';
 
@@ -84,9 +84,10 @@ musa_panel_mensaje();
 <section class="bloque-panel">
   <h2>Estado del servicio</h2>
   <p class="nota">
-    HeyGen atiende los avatares en tiempo real desde <strong>LiveAvatar</strong> (<code>api.liveavatar.com</code>).
-    La antigua «Interactive Avatar API» de HeyGen dejó de funcionar el 31 de marzo de 2026, por eso la clave,
-    el avatar y la voz deben ser de LiveAvatar.
+    HeyGen atiende los avatares en tiempo real desde <strong>LiveAvatar</strong> (<code>api.liveavatar.com</code>),
+    la plataforma que reemplaza a su antigua «Interactive Avatar». La clave, el avatar y la voz deben ser de LiveAvatar:
+    según HeyGen, los avatares creados en HeyGen no son compatibles directamente y se migran con otro ID.
+    Pulsa <strong>Verificar todo</strong> para confirmar que el avatar configurado existe en tu cuenta.
   </p>
   <table class="tabla compacta">
     <tbody>

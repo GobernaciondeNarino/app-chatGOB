@@ -1,6 +1,6 @@
 <?php
 /**
- * Musa Café · Avatar y tema de conversación
+ * QuéDice! · Avatar y tema de conversación
  * Configura el avatar de HeyGen (ID, voz, idioma, calidad) y de qué habla:
  * tema, personalidad, saludo, conocimiento, reglas y preguntas sugeridas.
  * Al guardar, el contexto se sincroniza con LiveAvatar.
@@ -27,6 +27,8 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
     $interactividad = (string) ($a['interactividad'] ?? 'CONVERSATIONAL');
     musa_fijar($nuevos, 'avatar.interactividad', $interactividad === 'PUSH_TO_TALK' ? 'PUSH_TO_TALK' : 'CONVERSATIONAL');
     musa_fijar($nuevos, 'avatar.duracion_maxima', max(60, min(3600, (int) ($a['duracion_maxima'] ?? 600))));
+    $formato = (string) ($a['formato'] ?? '3/4');
+    musa_fijar($nuevos, 'avatar.formato', in_array($formato, array('3/4', '1/1', '16/9', '9/16'), true) ? $formato : '3/4');
     musa_fijar($nuevos, 'avatar.sandbox', !empty($a['sandbox']));
     musa_fijar($nuevos, 'avatar.microfono_inicial', !empty($a['microfono_inicial']));
     musa_fijar($nuevos, 'avatar.permitir_escribir', !empty($a['permitir_escribir']));
@@ -113,6 +115,13 @@ musa_panel_mensaje();
       <select name="avatar[interactividad]">
         <option value="CONVERSATIONAL" <?php echo musa_dato($a, 'interactividad', '') !== 'PUSH_TO_TALK' ? 'selected' : ''; ?>>Conversación natural (detecta cuando la persona habla)</option>
         <option value="PUSH_TO_TALK" <?php echo musa_dato($a, 'interactividad', '') === 'PUSH_TO_TALK' ? 'selected' : ''; ?>>Mantener presionado para hablar (lugares ruidosos)</option>
+      </select>
+    </label>
+    <label>Formato del marco del avatar
+      <select name="avatar[formato]">
+        <?php foreach (array('3/4' => 'Vertical 3:4 (recomendado)', '9/16' => 'Vertical 9:16', '1/1' => 'Cuadrado 1:1', '16/9' => 'Horizontal 16:9 (video completo)') as $valor => $nombre) : ?>
+          <option value="<?php echo musa_e($valor); ?>" <?php echo musa_dato($a, 'formato', '3/4') === $valor ? 'selected' : ''; ?>><?php echo musa_e($nombre); ?></option>
+        <?php endforeach; ?>
       </select>
     </label>
     <label>Duración máxima de cada conversación (segundos)<input type="number" name="avatar[duracion_maxima]" min="60" max="3600" step="30" value="<?php echo (int) musa_dato($a, 'duracion_maxima', 600); ?>"></label>

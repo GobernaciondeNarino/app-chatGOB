@@ -1,5 +1,5 @@
 <?php
-/** Musa Café · Cierra la sesión del panel. */
+/** QuéDice! · Cierra la sesión del panel. */
 require_once dirname(__DIR__) . '/wj-includes/arranque.php';
 
 musa_sesion();

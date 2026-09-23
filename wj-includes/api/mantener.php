@@ -1,6 +1,6 @@
 <?php
 /**
- * Musa Café · Mantiene viva la sesión del avatar mientras la persona sigue en la página
+ * QuéDice! · Mantiene viva la sesión del avatar mientras la persona sigue en la página
  * POST JSON: { token, codigo, clave }
  */
 require_once __DIR__ . '/comun.php';

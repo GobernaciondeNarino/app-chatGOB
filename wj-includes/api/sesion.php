@@ -1,6 +1,6 @@
 <?php
 /**
- * Musa Café · Inicia una conversación con el avatar
+ * QuéDice! · Inicia una conversación con el avatar
  * POST JSON: { token, nombre, correo, telefono, ciudad, autorizacion, sitio_web }
  *
  * Valida el formulario de inicio (si está activo), crea el registro de la conversación,
@@ -40,7 +40,13 @@ if (!empty($form['activo'])) {
     }
     if (!empty($form['pedir_ciudad'])) {
         $campos['ciudad'] = musa_texto(isset($datos['ciudad']) ? $datos['ciudad'] : '', 80);
-        if ($campos['ciudad'] === '' && !empty($form['ciudad_obligatoria'])) { $errores['ciudad'] = 'Escribe tu municipio.'; }
+        if ($campos['ciudad'] === '' && !empty($form['ciudad_obligatoria'])) { $errores['ciudad'] = 'Elige tu municipio.'; }
+        elseif ($campos['ciudad'] !== '' && !empty($form['ciudad_lista'])) {
+            // Con la lista activa solo valen los municipios de Nariño (y «Otro municipio» si se permite).
+            $validos = musa_municipios_narino();
+            if (!empty($form['ciudad_otro'])) { $validos[] = 'Otro municipio'; }
+            if (!in_array($campos['ciudad'], $validos, true)) { $errores['ciudad'] = 'Elige un municipio de la lista.'; }
+        }
     }
     $campos['autorizacion'] = !empty($datos['autorizacion']);
     if (!empty(musa_dato($ajustes, 'seguridad.exigir_aceptacion', true)) && !$campos['autorizacion']) {

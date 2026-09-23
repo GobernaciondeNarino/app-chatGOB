@@ -1,4 +1,4 @@
-/* Musa Café · Panel de administración */
+/* QuéDice! · Panel de administración */
 
 (function () {
   'use strict';
@@ -106,6 +106,36 @@
       fila.querySelector('input').focus();
     });
   }
+
+  /* Paletas rápidas de color (Apariencia) */
+  var PALETAS = {
+    // Manual de identidad visual de la Gobernación de Nariño: verde #10A13B, amarillo #FFD500, azul #003366.
+    institucional: {
+      fondo: '#0B7A2E', fondo_profundo: '#003366', tarjeta: '#0A5C2A', tarjeta_borde: '#10A13B',
+      texto: '#FFFFFF', texto_suave: '#EAF5EC', acento: '#FFD500', texto_sobre_acento: '#1A1A1A',
+      acento_secundario: '#4FC3F7', burbuja_persona: '#FFFFFF', texto_persona: '#003366',
+      exito: '#10A13B', error: '#FFB3BC', institucional: '#003366'
+    },
+    cafe: {
+      fondo: '#AE1D2C', fondo_profundo: '#7E0E1C', tarjeta: '#9F1427', tarjeta_borde: '#C3364A',
+      texto: '#F7EFE0', texto_suave: '#EBC9CE', acento: '#F2B705', texto_sobre_acento: '#3A0A10',
+      acento_secundario: '#12A5C4', burbuja_persona: '#F6EDD9', texto_persona: '#5A0B16',
+      exito: '#2E9E6B', error: '#FFB3BC', institucional: '#003366'
+    }
+  };
+  $$('[data-paleta]').forEach(function (boton) {
+    boton.addEventListener('click', function () {
+      var paleta = PALETAS[boton.dataset.paleta];
+      if (!paleta) { return; }
+      Object.keys(paleta).forEach(function (clave) {
+        var entrada = $('input[name="colores[' + clave + ']"]');
+        if (!entrada) { return; }
+        entrada.value = paleta[clave];
+        var codigo = entrada.parentNode.querySelector('code');
+        if (codigo) { codigo.textContent = paleta[clave]; }
+      });
+    });
+  });
 
   /* Tarjetas de proveedor de IA */
   $$('.opcion input[type="radio"]').forEach(function (radio) {

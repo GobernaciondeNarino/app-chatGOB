@@ -1,6 +1,6 @@
 <?php
 /**
- * Musa Café · Cierra la conversación
+ * QuéDice! · Cierra la conversación
  * POST JSON (también por navigator.sendBeacon): { token, codigo, clave, motivo, mensajes }
  *
  * Guarda los últimos mensajes pendientes, detiene la sesión en LiveAvatar y,

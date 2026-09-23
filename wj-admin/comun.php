@@ -1,6 +1,6 @@
 <?php
 /**
- * Musa Café · Base del panel de administración (avatar conversacional)
+ * QuéDice! · Base del panel de administración (avatar conversacional)
  * Protege la carpeta y dibuja la cabecera y el pie de todas las pantallas.
  */
 require_once dirname(__DIR__) . '/wj-includes/arranque.php';
@@ -26,16 +26,16 @@ function musa_panel_inicio($titulo, $activo = 'registros') {
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex, nofollow">
-<title><?php echo musa_e($titulo); ?> · Musa Café</title>
-<link rel="icon" href="<?php echo musa_e(musa_url('wj-includes/images/optimizadas/logo_musacafe.png')); ?>">
+<title><?php echo musa_e($titulo); ?> · QuéDice!</title>
+<link rel="icon" href="<?php echo musa_e(musa_url('wj-includes/images/quedice/icono-quedice.png')); ?>">
 <link rel="stylesheet" href="<?php echo musa_e(musa_recurso('wj-includes/css/admin.css')); ?>">
 </head>
 <body>
 <header class="barra">
   <div class="barra-marca">
-    <img src="<?php echo musa_e(musa_url('wj-includes/images/optimizadas/logo_musacafe.png')); ?>" alt="">
+    <img src="<?php echo musa_e(musa_url('wj-includes/images/quedice/logo-quedice.png')); ?>" alt="">
     <div>
-      <strong>Panel <?php echo musa_e(musa_dato($ajustesPanel, 'marca.nombre', 'Musa Café')); ?></strong>
+      <strong>Panel de administración</strong>
       <span><?php echo musa_e(musa_dato($ajustesPanel, 'marca.entidad', 'Gobernación de Nariño')); ?></span>
     </div>
   </div>
@@ -59,7 +59,7 @@ function musa_panel_inicio($titulo, $activo = 'registros') {
 function musa_panel_fin() {
     ?>
 </main>
-<footer class="pie-panel">Musa Café v<?php echo musa_e(MUSA_VERSION); ?> · Gobernación de Nariño</footer>
+<footer class="pie-panel">QuéDice! v<?php echo musa_e(MUSA_VERSION); ?> · Gobernación de Nariño</footer>
 <script src="<?php echo musa_e(musa_recurso('wj-includes/js/admin.js')); ?>"></script>
 </body>
 </html>

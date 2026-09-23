@@ -1,6 +1,6 @@
 <?php
 /**
- * Musa Café · Envío de correo
+ * QuéDice! · Envío de correo
  * Envía a la persona el resumen de su conversación.
  * Soporta la función mail() de PHP (predeterminado en Plesk) y SMTP autenticado.
  */
@@ -30,13 +30,13 @@ function musa_correo_cabecera($texto) {
     return '=?UTF-8?B?' . base64_encode($texto) . '?=';
 }
 
-/** Arma el cuerpo HTML del correo con la identidad de Musa Café. */
+/** Arma el cuerpo HTML del correo con la identidad de QuéDice!. */
 function musa_correo_html($c, $ajustes) {
     $colores = musa_dato($ajustes, 'colores', array());
-    $fondo   = musa_color(musa_dato($colores, 'fondo', '#AE1D2C'), '#AE1D2C');
-    $texto   = musa_color(musa_dato($colores, 'texto', '#F7EFE0'), '#F7EFE0');
-    $acento  = musa_color(musa_dato($colores, 'acento', '#F2B705'), '#F2B705');
-    $marca   = musa_dato($ajustes, 'marca.nombre', 'Musa Café');
+    $fondo   = musa_color(musa_dato($colores, 'fondo', '#0B7A2E'), '#0B7A2E');
+    $texto   = musa_color(musa_dato($colores, 'texto', '#FFFFFF'), '#FFFFFF');
+    $acento  = musa_color(musa_dato($colores, 'acento', '#FFD500'), '#FFD500');
+    $marca   = musa_dato($ajustes, 'marca.nombre', 'QuéDice!');
     $entidad = musa_dato($ajustes, 'marca.entidad', 'Gobernación de Nariño');
     $avatar  = musa_dato($ajustes, 'avatar.nombre', 'Anfitrión');
 
@@ -87,7 +87,7 @@ function musa_correo_enviar($c, $ajustes = null) {
         return array('ok' => false, 'mensaje' => 'La conversación no tiene un correo válido.');
     }
 
-    $asunto = musa_correo_plantilla(musa_dato($ajustes, 'correo.asunto', 'Tu conversación en Musa Café'), $c, $ajustes);
+    $asunto = musa_correo_plantilla(musa_dato($ajustes, 'correo.asunto', 'Tu conversación en QuéDice!'), $c, $ajustes);
     $html = musa_correo_html($c, $ajustes);
     $textoPlano = musa_correo_plantilla(musa_dato($ajustes, 'correo.mensaje', ''), $c, $ajustes);
     if (!empty(musa_dato($ajustes, 'correo.incluir_conversacion', true))) {
@@ -96,7 +96,7 @@ function musa_correo_enviar($c, $ajustes = null) {
     $adjunto = null;
 
     $remitente = musa_dato($ajustes, 'correo.remitente', 'no-responder@narino.gov.co');
-    $nombreRemitente = musa_dato($ajustes, 'correo.nombre_remitente', 'Musa Café');
+    $nombreRemitente = musa_dato($ajustes, 'correo.nombre_remitente', 'QuéDice!');
     $metodo = musa_dato($ajustes, 'correo.metodo', 'mail');
 
     $mensaje = musa_correo_construir($html, $textoPlano, $adjunto, $limite);
@@ -104,7 +104,7 @@ function musa_correo_enviar($c, $ajustes = null) {
         'From: ' . musa_correo_cabecera($nombreRemitente) . ' <' . $remitente . '>',
         'MIME-Version: 1.0',
         'Content-Type: multipart/alternative; boundary="' . $limite . '"',
-        'X-Mailer: Musa Cafe ' . MUSA_VERSION,
+        'X-Mailer: QueDice ' . MUSA_VERSION,
     );
     $responder = musa_dato($ajustes, 'correo.responder_a', '');
     if (musa_correo_valido($responder)) { $cabeceras[] = 'Reply-To: ' . $responder; }
@@ -244,7 +244,7 @@ function musa_correo_prueba($destino, $ajustes = null) {
     if ($ajustes === null) { $ajustes = musa_ajustes(); }
     $c = array_merge(musa_conversacion_base(), array(
         'codigo'   => 'PRUEBA-' . date('Ymd-His'),
-        'nombre'   => 'Equipo Musa Café',
+        'nombre'   => 'Equipo QuéDice!',
         'correo'   => $destino,
         'fecha'    => date('Y-m-d H:i:s'),
         'mensajes' => array(

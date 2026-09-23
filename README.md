@@ -1,4 +1,4 @@
-# Musa Café · Avatar conversacional
+# QuéDice! · Avatar conversacional
 
 Aplicación web de la **Gobernación de Nariño**. Un avatar de **HeyGen** aparece en el centro de
 la pantalla y conversa por voz con las personas sobre el tema configurado (por defecto, **el café
@@ -16,8 +16,8 @@ formulario de inicio.
 
 | Parte | Descripción |
 |---|---|
-| **Interfaz pública** (`index.php`) | Avatar en video en el centro, escena 3D con **three.js** (granos de café, vapor y un aura que reacciona a la voz del avatar), transcripción en vivo, preguntas escritas y sugeridas, micrófono, interrumpir y terminar. |
-| **Formulario de inicio** | Opcional: nombre, correo, teléfono, municipio y autorización de datos (Ley 1581). Se activa o desactiva y se eligen sus campos desde el panel. |
+| **Interfaz pública** (`index.php`) | Un solo contenedor `div#app` de 100 % de ancho y 100vh de alto, **sin scroll**. Avatar en video en el centro, escena 3D con **three.js** (granos de café, vapor y un aura que reacciona a la voz del avatar) y abajo el panel con la transcripción en vivo, preguntas escritas y sugeridas, micrófono, interrumpir y terminar. Franja GOV.CO y botón de accesibilidad (texto grande y alto contraste). |
+| **Formulario de inicio** | Opcional: nombre, correo, municipio (lista de los 64 municipios de Nariño o texto libre), teléfono y autorización de datos (Ley 1581). Se activa o desactiva y se eligen sus campos desde el panel. |
 | **Panel** (`wj-admin/`) | Conversaciones con todas las preguntas y respuestas, casillas **Creado** y **Enviado**, exportación CSV/JSON, avatar y tema, API de HeyGen con verificación, apariencia, correo y credenciales. |
 | **Núcleo** (`wj-includes/`) | Configuración, almacenamiento JSON, seguridad, correo, cliente de HeyGen LiveAvatar y la API pública. |
 | **Contenido** (`wj-content/`) | Ajustes, conversaciones, imágenes subidas y bitácoras. Es la única carpeta que necesita permisos de escritura. |
@@ -28,19 +28,25 @@ Solo existen tres carpetas en la raíz del proyecto: `wj-admin`, `wj-includes` y
 
 ## 2. HeyGen LiveAvatar: lo que debes saber
 
-HeyGen reemplazó su antigua **Interactive Avatar API** por la plataforma **LiveAvatar**
-(`api.liveavatar.com`). La API anterior dejó de funcionar el **31 de marzo de 2026**, así que
-este sistema usa LiveAvatar en **modo FULL**: LiveAvatar escucha a la persona, entiende la
-pregunta, genera la respuesta con el contexto que configuras y la dice con la voz del avatar.
+HeyGen está retirando su antigua **Interactive Avatar** y remite a la plataforma **LiveAvatar**
+(`api.liveavatar.com`), su versión de producción para avatares en tiempo real. Este sistema usa
+LiveAvatar en **modo FULL**: LiveAvatar escucha a la persona, entiende la pregunta, genera la
+respuesta con el contexto que configuras y la dice con la voz del avatar.
 
-- **La clave, el avatar y la voz deben ser de LiveAvatar** (`app.liveavatar.com`). En la
-  migración, HeyGen creó *copias* de los avatares con **ID nuevos**.
+Fuentes consultadas (septiembre de 2026): [documentación de LiveAvatar](https://docs.liveavatar.com)
+y su especificación [openapi.json](https://docs.liveavatar.com/openapi.json), y el anuncio de HeyGen
+[Introducing LiveAvatar](https://help.heygen.com/en/articles/12758516-introducing-liveavatar).
+HeyGen no publica en esas páginas una fecha exacta de cierre de la API anterior.
+
+- **La clave, el avatar y la voz deben ser de LiveAvatar** (`app.liveavatar.com`). Según HeyGen,
+  los avatares creados en HeyGen no son compatibles directamente con LiveAvatar: se migran con
+  su ayuda y pueden quedar con otro ID.
 - Los ID configurados de fábrica son los entregados para este proyecto:
   avatar `56aa5373edb14809a1572b36af99b94c` y voz `5fab49b6cbd84b2cb0320fd28f9e49de`.
-  LiveAvatar espera el formato UUID con guiones; el sistema los convierte solo
-  (`56aa5373-edb1-4809-a157-2b36af99b94c`). Si al verificar responde «no encontrado», busca el
-  avatar migrado en `app.liveavatar.com` o usa **API HeyGen → Ver mis avatares y voces** y copia
-  el ID nuevo en **Avatar y tema**.
+  LiveAvatar espera el formato UUID con guiones y el sistema los convierte solo
+  (`56aa5373-edb1-4809-a157-2b36af99b94c`). **Que ese ID exista en LiveAvatar solo se puede
+  confirmar con la clave real:** pulsa **API HeyGen → Verificar todo**. Si responde «no
+  encontrado», usa **Ver mis avatares y voces** y copia el ID migrado en **Avatar y tema**.
 - **Modo sandbox**: para probar sin gastar créditos (avatar genérico, sesiones de ~1 minuto).
 - La clave **nunca llega al navegador**: el servidor crea e inicia cada sesión y solo entrega al
   visitante el acceso temporal a la sala de video.
@@ -55,8 +61,10 @@ pregunta, genera la respuesta con el contexto que configuras y la dice con la vo
 2. **PHP.** En *Plesk → Dominios → Configuración de PHP*, selecciona **PHP 7.4 o superior**
    (probado en PHP 8.4). Deja activadas las extensiones `curl`, `json` y `mbstring`.
 
-3. **HTTPS obligatorio.** Activa el certificado **Let's Encrypt** del dominio. Sin HTTPS el
-   navegador no permite usar el micrófono.
+3. **HTTPS obligatorio.** Activa el certificado **Let's Encrypt** del dominio y, en
+   *Hosting y DNS*, la **redirección 301 permanente de HTTP a HTTPS**. Sin HTTPS el navegador no
+   permite usar el micrófono. (El `.htaccess` no la fuerza para no dejar el sitio caído si el
+   certificado aún no está instalado.)
 
 4. **Permisos de escritura** sobre `wj-content` para el usuario del servidor web:
 
@@ -74,13 +82,19 @@ pregunta, genera la respuesta con el contexto que configuras y la dice con la vo
      como `wj-content/config/claves.php` y escribe la clave. Ese archivo está excluido del
      repositorio.
 
-6. **Entra al panel:** `https://tu-dominio/wj-admin/`
+6. **Entra al panel y crea la cuenta:** `https://tu-dominio/wj-admin/`
 
-   | Usuario | Contraseña |
-   |---|---|
-   | `admin` | `MusaCafe2026*Narino` |
+   La primera vez aparece **Configuración inicial** y pide un **código de instalación**. El
+   sistema lo acaba de escribir en `wj-content/config/codigo-instalacion.php`: ábrelo en
+   *Plesk → Administrador de archivos* y cópialo (la web no entrega ese archivo). Así solo puede
+   crear la cuenta quien tiene acceso al servidor. Luego escribe el usuario y una contraseña de al
+   menos 10 caracteres con letras y números. Se guarda cifrada con bcrypt en
+   `wj-content/config/.htpasswd` (fuera del repositorio) y el código se borra. No hay contraseña
+   de fábrica.
 
-   > **Cámbiala apenas ingreses**, en *Acceso → Usuario y contraseña*.
+   > Si una instalación anterior usaba la contraseña de fábrica que publicaba la versión previa de
+   > este README, cámbiala en *Acceso → Usuario y contraseña*: las credenciales de
+   > `wj-admin/.htpasswd` se trasladan solas a `wj-content/config/.htpasswd`.
 
 7. En **API HeyGen** pulsa **Verificar todo** (créditos, avatar y voz) y luego **Prueba de
    sesión** (valida avatar, voz, idioma y contexto sin consumir créditos).
@@ -98,7 +112,7 @@ pregunta, genera la respuesta con el contexto que configuras y la dice con la vo
 
 ### Avatar y tema
 - **Avatar:** nombre del personaje, ID del avatar, ID de la voz, idioma, calidad de video
-  (360p a 1080p), forma de hablar (*conversación natural* o *mantener presionado para hablar*,
+  (360p a 1080p), formato del marco (3:4, 9:16, 1:1 o 16:9), forma de hablar (*conversación natural* o *mantener presionado para hablar*,
   útil en lugares ruidosos), duración máxima, micrófono al iniciar, permitir escribir y sandbox.
 - **Tema:** nombre del tema (por defecto **Café**), saludo inicial, personalidad,
   **información que debe conocer** (base de conocimiento), reglas y máximo de palabras por
@@ -117,13 +131,20 @@ pregunta, genera la respuesta con el contexto que configuras y la dice con la vo
 | **Ver mis avatares y voces** | Lista los avatares y voces de la cuenta con sus ID. | No |
 
 ### Apariencia y formulario
-- **Identidad, imágenes y logos:** imagen del avatar (se ve mientras conecta), logo, rama
-  decorativa, imagen lateral y favicon. Puedes elegir una existente o subir una nueva
+- **Identidad:** nombre, eslogan, entidad, sitio de la entidad y la **franja GOV.CO** superior
+  (activable), como pide el manual de sitios web de la Gobernación.
+- **Imágenes y logos:** imagen del avatar (se ve mientras conecta), logo, **imagen de fondo de
+  pantalla completa** con control de visibilidad (0-100 %), decoraciones de esquina y lateral,
+  logo de la entidad para la franja GOV.CO y favicon. Puedes elegir una existente o subir una nueva
   (`wj-content/subidas`, máximo 5 MB).
-- **Colores:** trece colores con selector visual.
+- **Colores:** catorce colores con selector visual y dos paletas en un clic:
+  **Institucional Gobernación de Nariño** (verde #10A13B, amarillo #FFD500, azul #003366 del
+  Manual de Identidad Visual 2024, con los verdes ajustados para cumplir contraste AA;
+  predeterminada) y **Café** (rojo y dorado).
 - **Formulario de inicio:** activarlo o no («saber con quién se habla») y qué campos pedir
-  (correo, teléfono, municipio) y cuáles son obligatorios. El nombre siempre se pide cuando está
-  activo. Si se desactiva, las conversaciones quedan anónimas.
+  (correo, municipio, teléfono) y cuáles son obligatorios. El municipio puede elegirse de la
+  **lista de los 64 municipios de Nariño** (con «Otro municipio» opcional) o escribirse libre.
+  El nombre siempre se pide cuando está activo. Si se desactiva, las conversaciones quedan anónimas.
 - **Textos:** todos los textos visibles de la experiencia.
 - **Sistema y límites:** efectos 3D, conversaciones por hora y por día (por IP o correo),
   máximo de mensajes por conversación, prefijo del código y zona horaria.
@@ -155,8 +176,14 @@ pregunta) o **JSON**.
 
 ## 6. Seguridad
 
+- `.htaccess` incluidos: en la raíz (sin listado de carpetas; bloquea `.md`, `.json`, `.log` y
+  archivos ocultos), en `wj-admin` (autenticación de Apache opcional) y en `wj-content` (por la web
+  solo se sirven imágenes; ningún script se ejecuta desde allí).
 - La clave de LiveAvatar vive solo en el servidor; al navegador llega un token temporal de sala.
-- Panel protegido con bcrypt (`wj-admin/.htpasswd`), bloqueo tras 8 intentos fallidos, cierre por
+- Primera cuenta solo con el código de instalación de un solo uso (legible únicamente desde el
+  servidor), creada de forma atómica. Si `.htpasswd` existe pero está dañado, el panel queda
+  cerrado en lugar de ofrecer otra cuenta. Cambiar la contraseña cierra las demás sesiones.
+- Panel protegido con bcrypt (`wj-content/config/.htpasswd`), bloqueo tras 8 intentos fallidos, cierre por
   inactividad (2 horas) y token CSRF en todas las acciones.
 - La API pública exige token CSRF y, para cada conversación, una clave aleatoria propia.
 - Límite de conversaciones por hora y por día (por IP o correo) para proteger los créditos,
@@ -177,8 +204,8 @@ Para que además el navegador pida usuario y contraseña, quita el comentario de
 
 ```apache
 AuthType Basic
-AuthName "Panel Musa Cafe"
-AuthUserFile /var/www/vhosts/TU-DOMINIO/httpdocs/wj-admin/.htpasswd
+AuthName "Panel QueDice"
+AuthUserFile /var/www/vhosts/TU-DOMINIO/httpdocs/wj-content/config/.htpasswd
 Require valid-user
 ```
 
@@ -198,26 +225,28 @@ Require valid-user
 
 ## 8. Estructura de archivos
 
+Solo existen tres carpetas: `wj-admin`, `wj-includes` y `wj-content`.
+
 ```
-index.php                     Interfaz pública del avatar
-.htaccess                     Seguridad, caché y compresión
+index.php                     Interfaz pública (un solo div de 100 % × 100vh, sin scroll)
+.htaccess  .gitignore         Seguridad de Apache y archivos que no se suben al repositorio
 README.md · ARQUITECTURA.md   Documentación
 
 wj-admin/
-  .htaccess  .htpasswd        Protección y credenciales del panel
+  .htaccess                   Protección (autenticación de Apache opcional)
   index.php                   Conversaciones, casillas Creado/Enviado, detalle
   avatar.php                  Avatar, voz, tema, conocimiento y sugerencias
   api.php                     Clave de LiveAvatar y verificaciones
   ajustes.php                 Apariencia, formulario de inicio y límites
   correo.php                  Correo y prueba de envío
   cuenta.php                  Credenciales y estado del sistema
-  acceso.php  salir.php       Inicio y cierre de sesión
+  acceso.php  salir.php       Primera configuración, inicio y cierre de sesión
   acciones.php  comun.php     Acciones del panel y plantilla común
 
 wj-includes/
   arranque.php                Constantes y carga del sistema
   funciones.php               Utilidades (JSON, HTTP, rutas, textos)
-  configuracion.php           Ajustes predeterminados, conocimiento del café y migración
+  configuracion.php           Ajustes predeterminados, conocimiento del café, municipios y migración
   almacenamiento.php          Conversaciones en JSON con bloqueo
   heygen.php                  Cliente de HeyGen LiveAvatar
   seguridad.php               Sesión, CSRF, .htpasswd, límites
@@ -232,8 +261,9 @@ wj-includes/
   js/vendor/livekit-client.umd.js  LiveKit 2.22.3 (video en tiempo real)
   images/                     Logo, fondos y avatar (images/avatar/avatar-cafe.webp)
 
-wj-content/
-  config/                     Ajustes vigentes, ejemplo y claves.php (opcional)
+wj-content/                   Única carpeta escribible (sus datos no se suben al repositorio)
+  .htaccess                   Solo imágenes por la web
+  config/                     Ajustes vigentes, .htpasswd, ejemplo y claves.php (opcional)
   datos/                      conversaciones.json.php
   subidas/                    Imágenes cargadas desde el panel
   logs/                       Bitácoras mensuales
@@ -241,4 +271,19 @@ wj-content/
 
 ---
 
-Gobernación de Nariño · Musa Café · versión 2.0.0
+## 9. Herramientas de desarrollo
+
+Para construir y revisar esta versión se usaron, instaladas en el equipo de desarrollo y **no
+dentro del proyecto** (para respetar la regla de tres carpetas):
+[repomix](https://github.com/yamadashy/repomix),
+[anthropics/skills](https://github.com/anthropics/skills),
+[chrome-devtools-mcp](https://github.com/ChromeDevTools/chrome-devtools-mcp),
+[claude-code-security-review](https://github.com/anthropics/claude-code-security-review),
+[graphify](https://github.com/Graphify-Labs/graphify) y
+[apple-design-skill](https://github.com/dickwu/apple-design-skill) (guía de diseño aplicada a la
+interfaz: capa funcional translúcida, objetivos táctiles de 44 px, contraste AA, preferencias de
+movimiento y transparencia reducidos). Ninguna es necesaria en el servidor.
+
+---
+
+Gobernación de Nariño · QuéDice! · versión 2.2.0

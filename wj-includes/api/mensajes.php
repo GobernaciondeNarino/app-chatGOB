@@ -1,6 +1,6 @@
 <?php
 /**
- * Musa Café · Guarda las preguntas y respuestas de la conversación
+ * QuéDice! · Guarda las preguntas y respuestas de la conversación
  * POST JSON: { token, codigo, clave, mensajes: [{ rol: persona|avatar, texto, origen: voz|texto, ref }] }
  */
 require_once __DIR__ . '/comun.php';

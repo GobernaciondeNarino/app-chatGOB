@@ -1,6 +1,6 @@
 <?php
 /**
- * Musa Café · Conversaciones registradas
+ * QuéDice! · Conversaciones registradas
  * Muestra los datos de cada persona, todas sus preguntas y las respuestas del avatar,
  * y permite marcar las casillas "Creado SÍ/NO" y "Enviado SÍ/NO".
  */

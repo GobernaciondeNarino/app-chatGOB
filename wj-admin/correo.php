@@ -1,6 +1,6 @@
 <?php
 /**
- * Musa Café · Configuración del correo saliente
+ * QuéDice! · Configuración del correo saliente
  */
 require_once __DIR__ . '/comun.php';
 

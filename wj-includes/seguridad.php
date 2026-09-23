@@ -1,12 +1,138 @@
 <?php
 /**
- * Musa Café · Seguridad
+ * QuéDice! · Seguridad
  * Sesiones, CSRF, control de intentos y autenticación del panel
- * contra el archivo wj-admin/.htpasswd (el mismo que usa .htaccess).
+ * contra el archivo wj-content/config/.htpasswd (formato de Apache, sirve también para .htaccess).
+ *
+ * El archivo vive en wj-content (la única carpeta escribible y fuera del repositorio).
+ * Si no existe, el panel pide crear la cuenta de administrador en el primer ingreso.
  */
 if (!defined('MUSA_ARRANQUE')) { http_response_code(403); exit('Acceso directo no permitido.'); }
 
-define('MUSA_HTPASSWD', MUSA_ADMIN . '/.htpasswd');
+define('MUSA_HTPASSWD', MUSA_DIR_CONFIG . '/.htpasswd');
+define('MUSA_HTPASSWD_ANTERIOR', MUSA_ADMIN . '/.htpasswd');
+define('MUSA_CODIGO_INSTALACION', MUSA_DIR_CONFIG . '/codigo-instalacion.php');
+define('MUSA_CREDENCIALES_BLOQUEO', MUSA_DIR_CONFIG . '/credenciales.lock');
+
+/** Trae las credenciales de la versión anterior (wj-admin/.htpasswd) si todavía no se movieron. */
+function musa_htpasswd_migrar() {
+    if (file_exists(MUSA_HTPASSWD) || !file_exists(MUSA_HTPASSWD_ANTERIOR)) { return; }
+    $contenido = @file_get_contents(MUSA_HTPASSWD_ANTERIOR);
+    // Solo se trae si tiene al menos una línea usuario:hash; un archivo vacío o de ejemplo no
+    // debe convertirse en las credenciales vigentes (dejaría el panel bloqueado).
+    if ($contenido === false || !preg_match('/^[^#\s:][^:]*:\S+/m', $contenido)) { return; }
+    if (@file_put_contents(MUSA_HTPASSWD, $contenido, LOCK_EX) !== false) {
+        @chmod(MUSA_HTPASSWD, 0640);
+        musa_log('Credenciales del panel movidas de wj-admin/.htpasswd a wj-content/config/.htpasswd');
+    }
+}
+
+/**
+ * Estado de las credenciales del panel:
+ *  'sin_cuenta' = no existe el archivo (instalación recién descargada): se ofrece la configuración inicial.
+ *  'ok'         = hay al menos un usuario válido.
+ *  'danado'     = el archivo existe pero está vacío o no se puede leer. Falla cerrado: nunca se ofrece
+ *                 crear otra cuenta encima; hay que restaurarlo o borrarlo desde el servidor.
+ */
+function musa_credenciales_estado() {
+    musa_htpasswd_migrar();
+    if (!file_exists(MUSA_HTPASSWD)) { return 'sin_cuenta'; }
+    return musa_htpasswd_leer() !== array() ? 'ok' : 'danado';
+}
+
+/** ¿Ya existe (o existió) una cuenta de administrador? */
+function musa_hay_administrador() {
+    return musa_credenciales_estado() !== 'sin_cuenta';
+}
+
+/**
+ * Código de instalación de un solo uso. Se escribe en wj-content/config/codigo-instalacion.php,
+ * que la web no entrega (403): solo lo lee quien tiene acceso a los archivos del servidor
+ * (Administrador de archivos de Plesk, FTP o SSH). Sin él nadie puede crear la primera cuenta.
+ */
+function musa_codigo_instalacion() {
+    $datos = musa_leer_json(MUSA_CODIGO_INSTALACION, array());
+    if (!empty($datos['codigo']) && is_string($datos['codigo'])) { return $datos['codigo']; }
+    $crudo = strtoupper(bin2hex(random_bytes(8)));
+    $codigo = implode('-', str_split($crudo, 4));
+    musa_escribir_json(MUSA_CODIGO_INSTALACION, array(
+        'codigo' => $codigo,
+        'creado' => date('Y-m-d H:i:s'),
+        'uso'    => 'Escribe este código en /wj-admin/ para crear la cuenta de administrador. Se borra al usarlo.',
+    ));
+    musa_log('Código de instalación del panel generado en wj-content/config/codigo-instalacion.php');
+    return $codigo;
+}
+
+/** Compara el código de instalación sin distinguir mayúsculas, espacios ni guiones. */
+function musa_codigo_instalacion_valido($recibido) {
+    $normalizar = function ($v) { return strtoupper(preg_replace('/[^A-Za-z0-9]/', '', (string) $v)); };
+    $esperado = $normalizar(musa_codigo_instalacion());
+    return $esperado !== '' && hash_equals($esperado, $normalizar($recibido));
+}
+
+/**
+ * Crea la primera cuenta de forma atómica: el bloqueo cubre la comprobación y la escritura, y el
+ * archivo se abre en modo 'x' (falla si ya existe), así dos solicitudes simultáneas no se pisan.
+ * Devuelve 'ok', 'existe' o 'error'.
+ */
+function musa_htpasswd_crear_primera($usuario, $clave) {
+    $hash = password_hash((string) $clave, PASSWORD_BCRYPT);
+    if ($hash === false) { return 'error'; }
+    if (!is_dir(MUSA_DIR_CONFIG)) { @mkdir(MUSA_DIR_CONFIG, 0775, true); }
+    $bloqueo = @fopen(MUSA_CREDENCIALES_BLOQUEO, 'c');
+    if ($bloqueo === false || !@flock($bloqueo, LOCK_EX)) { return 'error'; }
+    $resultado = 'error';
+    if (musa_hay_administrador()) {
+        $resultado = 'existe';
+    } else {
+        $archivo = @fopen(MUSA_HTPASSWD, 'x');
+        if ($archivo !== false) {
+            $contenido = "# QuéDice! · credenciales del panel wj-admin\n# Generado el " . date('Y-m-d H:i:s') . " · cifrado bcrypt\n" . $usuario . ':' . $hash . "\n";
+            $ok = @fwrite($archivo, $contenido) === strlen($contenido);
+            @fclose($archivo);
+            if ($ok) {
+                @chmod(MUSA_HTPASSWD, 0640);
+                @unlink(MUSA_CODIGO_INSTALACION);
+                $resultado = 'ok';
+            } else {
+                @unlink(MUSA_HTPASSWD);
+            }
+        } else {
+            $resultado = file_exists(MUSA_HTPASSWD) ? 'existe' : 'error';
+        }
+    }
+    @flock($bloqueo, LOCK_UN);
+    @fclose($bloqueo);
+    return $resultado;
+}
+
+/**
+ * Huella de la credencial vigente de un usuario. La sesión la guarda al entrar: si la contraseña
+ * cambia o el archivo se restablece, las sesiones abiertas dejan de valer.
+ */
+function musa_credencial_version($usuario) {
+    $usuarios = musa_htpasswd_leer();
+    return isset($usuarios[$usuario]) ? sha1($usuario . ':' . $usuarios[$usuario]) : '';
+}
+
+/** Abre la sesión del administrador ligada a su credencial vigente. */
+function musa_sesion_admin_abrir($usuario) {
+    musa_sesion();
+    session_regenerate_id(true);
+    $_SESSION['musa_admin'] = $usuario;
+    $_SESSION['musa_admin_hora'] = time();
+    $_SESSION['musa_admin_version'] = musa_credencial_version($usuario);
+}
+
+/** Reglas mínimas de la contraseña del panel. Devuelve el error o '' si es válida. */
+function musa_clave_debil($clave, $usuario = '') {
+    $clave = (string) $clave;
+    if (strlen($clave) < 10) { return 'La contraseña debe tener al menos 10 caracteres.'; }
+    if (!preg_match('/[A-Za-z]/', $clave) || !preg_match('/[0-9]/', $clave)) { return 'La contraseña debe combinar letras y números.'; }
+    if ($usuario !== '' && stripos($clave, (string) $usuario) !== false) { return 'La contraseña no puede contener el nombre de usuario.'; }
+    return '';
+}
 
 /** Inicia la sesión con parámetros seguros. */
 function musa_sesion() {
@@ -58,6 +184,7 @@ function musa_exigir_token($token, $json = false) {
 
 /** Lee el archivo .htpasswd como arreglo usuario => hash. */
 function musa_htpasswd_leer() {
+    musa_htpasswd_migrar();
     $usuarios = array();
     if (!file_exists(MUSA_HTPASSWD)) { return $usuarios; }
     $lineas = file(MUSA_HTPASSWD, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
@@ -78,10 +205,14 @@ function musa_htpasswd_guardar($usuario, $clave) {
     if ($usuario === '' || strlen((string) $clave) < 8) { return false; }
     $hash = password_hash($clave, PASSWORD_BCRYPT);
     if ($hash === false) { return false; }
-    $contenido = "# Musa Café · credenciales del panel wj-admin\n";
+    if (!is_dir(dirname(MUSA_HTPASSWD))) { @mkdir(dirname(MUSA_HTPASSWD), 0775, true); }
+    $contenido = "# QuéDice! · credenciales del panel wj-admin\n";
     $contenido .= "# Generado el " . date('Y-m-d H:i:s') . " · cifrado bcrypt\n";
     $contenido .= $usuario . ':' . $hash . "\n";
+    $bloqueo = @fopen(MUSA_CREDENCIALES_BLOQUEO, 'c');
+    if ($bloqueo !== false) { @flock($bloqueo, LOCK_EX); }
     $ok = @file_put_contents(MUSA_HTPASSWD, $contenido, LOCK_EX) !== false;
+    if ($bloqueo !== false) { @flock($bloqueo, LOCK_UN); @fclose($bloqueo); }
     if ($ok) { @chmod(MUSA_HTPASSWD, 0640); }
     return $ok;
 }
@@ -205,9 +336,12 @@ function musa_usuario_apache() {
 function musa_exigir_admin() {
     musa_sesion();
 
-    if (!file_exists(MUSA_HTPASSWD)) {
-        http_response_code(500);
-        exit('Falta el archivo wj-admin/.htpasswd. Consulta el README.md para crearlo.');
+    // Sin cuenta (instalación recién descargada) o archivo dañado: acceso.php explica qué hacer.
+    if (musa_credenciales_estado() !== 'ok') {
+        unset($_SESSION['musa_admin'], $_SESSION['musa_admin_hora'], $_SESSION['musa_admin_version']);
+        $destino = musa_url('wj-admin/acceso.php');
+        if (!headers_sent()) { header('Location: ' . $destino); }
+        exit('<a href="' . musa_e($destino) . '">Configurar el panel</a>');
     }
 
     // Credenciales enviadas por cabecera (las valide Apache o las mande el navegador):
@@ -221,12 +355,12 @@ function musa_exigir_admin() {
         }
         if (musa_credenciales_validas($apache[0], $apache[1])) {
             musa_registrar_intento($ip, false);
-            if (empty($_SESSION['musa_admin'])) {
-                session_regenerate_id(true);
+            if (empty($_SESSION['musa_admin']) || $_SESSION['musa_admin'] !== $apache[0]) {
+                musa_sesion_admin_abrir($apache[0]);
                 musa_log('Acceso al panel por cabecera', array('usuario' => $apache[0], 'ip' => $ip));
             }
-            $_SESSION['musa_admin'] = $apache[0];
             $_SESSION['musa_admin_hora'] = time();
+            $_SESSION['musa_admin_version'] = musa_credencial_version($apache[0]);
             return $apache[0];
         }
         musa_registrar_intento($ip, true);
@@ -235,11 +369,14 @@ function musa_exigir_admin() {
 
     if (!empty($_SESSION['musa_admin'])) {
         $inactividad = time() - (int) ($_SESSION['musa_admin_hora'] ?? 0);
-        if ($inactividad < 7200) {
+        // La sesión solo vale mientras la credencial con la que se abrió siga igual en .htpasswd.
+        $version = musa_credencial_version((string) $_SESSION['musa_admin']);
+        $vigente = $version !== '' && hash_equals($version, (string) ($_SESSION['musa_admin_version'] ?? ''));
+        if ($inactividad < 7200 && $vigente) {
             $_SESSION['musa_admin_hora'] = time();
             return $_SESSION['musa_admin'];
         }
-        unset($_SESSION['musa_admin'], $_SESSION['musa_admin_hora']);
+        unset($_SESSION['musa_admin'], $_SESSION['musa_admin_hora'], $_SESSION['musa_admin_version']);
     }
 
     $destino = musa_url('wj-admin/acceso.php');
