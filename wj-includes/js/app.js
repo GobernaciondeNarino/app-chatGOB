@@ -1057,7 +1057,9 @@
 
   var Escucha = (function () {
     var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-    var puedeGrabar = !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia && window.MediaRecorder && window.FormData);
+    // El servidor solo acepta WebM con Opus (mide su duración real antes de enviarlo a Scribe).
+    var puedeGrabar = !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia && window.MediaRecorder && window.FormData
+      && window.MediaRecorder.isTypeSupported && window.MediaRecorder.isTypeSupported('audio/webm;codecs=opus'));
     var escucha = CONFIG.escucha || {};
     // «navegador»: reconocimiento del propio navegador (gratis). «servidor»: se graba y se transcribe
     // con ElevenLabs Scribe. Sin reconocimiento propio (Firefox), se usa el servidor si está configurado.
@@ -1132,11 +1134,7 @@
       return Math.sqrt(suma / datosMic.length);
     }
 
-    function tipoGrabacion() {
-      var tipos = ['audio/webm;codecs=opus', 'audio/ogg;codecs=opus', 'audio/mp4', 'audio/webm'];
-      for (var i = 0; i < tipos.length; i++) { if (window.MediaRecorder.isTypeSupported && window.MediaRecorder.isTypeSupported(tipos[i])) { return tipos[i]; } }
-      return '';
-    }
+    function tipoGrabacion() { return 'audio/webm;codecs=opus'; }
 
     function empezarGrabacion() {
       trozos = [];

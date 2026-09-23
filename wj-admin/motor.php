@@ -64,7 +64,9 @@ function musa_motor_verificar_todo($ajustes) {
             ? array('ok' => false, 'mensaje' => 'Falta la clave de ElevenLabs para escuchar por el servidor.', 'detalle' => '')
             : musa_elevenlabs_verificar_escucha($ajustes);
     } else {
-        $respaldo = musa_elevenlabs_clave($ajustes) !== '' ? ' En navegadores sin reconocimiento (Firefox) se usa ElevenLabs Scribe como respaldo.' : ' Firefox no tiene reconocimiento de voz: allí solo se podrá escribir (o configura ElevenLabs como respaldo).';
+        $respaldo = musa_elevenlabs_clave($ajustes) !== '' && !empty(musa_dato($ajustes, 'escucha.respaldo', true))
+            ? ' En navegadores sin reconocimiento (Firefox) se usa ElevenLabs Scribe como respaldo.'
+            : ' Firefox no tiene reconocimiento de voz: allí solo se podrá escribir (o activa el respaldo con ElevenLabs).';
         $r['Escucha · navegador'] = array('ok' => true, 'mensaje' => 'Reconocimiento de voz del navegador (Chrome, Edge y Safari), sin costo.' . $respaldo, 'detalle' => '');
     }
     $faltan = array();
@@ -93,12 +95,20 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
         $ia = isset($_POST['ia']) && is_array($_POST['ia']) ? $_POST['ia'] : array();
         $proveedor = (string) ($ia['proveedor'] ?? 'gemini');
         if (!array_key_exists($proveedor, musa_ia_presets())) { $proveedor = 'gemini'; }
-        if ($proveedor !== musa_ia_proveedor($ajustesPanel)) {
-            // Cambió el proveedor: la clave anterior es de otro servicio y no se reutiliza.
+        $base = musa_ia_base_valida(musa_texto($ia['base_url'] ?? '', 300));
+        $avisoBase = '';
+        if ($base !== '' && strpos($base, 'https://') === 0 && !musa_ia_host_publico($base)) {
+            // La clave no debe viajar a servicios internos: solo direcciones públicas (o localhost por http).
+            $avisoBase = ' La dirección de la IA no se guardó: debe ser pública (o http://127.0.0.1 para un modelo local).';
+            $base = '';
+        }
+        $baseAnterior = (string) musa_dato($ajustesPanel, 'ia.base_url', '');
+        if ($proveedor !== musa_ia_proveedor($ajustesPanel) || ($proveedor === 'personalizado' && $base !== $baseAnterior)) {
+            // Cambió el proveedor o la dirección: la clave anterior no se envía a otro servicio.
             musa_fijar($nuevos, 'ia.api_key', '');
         }
         musa_fijar($nuevos, 'ia.proveedor', $proveedor);
-        musa_fijar($nuevos, 'ia.base_url', musa_ia_base_valida(musa_texto($ia['base_url'] ?? '', 300)));
+        musa_fijar($nuevos, 'ia.base_url', $base);
         $modelo = substr(preg_replace('#[^A-Za-z0-9._:/@\-]#', '', (string) ($ia['modelo'] ?? '')), 0, 120);
         musa_fijar($nuevos, 'ia.modelo', $modelo !== '' ? $modelo : musa_ia_presets()[$proveedor]['modelo']);
         musa_panel_clave($nuevos, 'ia.api_key', $ia['api_key'] ?? '', !empty($ia['borrar_clave']));
@@ -133,6 +143,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
         $es = isset($_POST['escucha']) && is_array($_POST['escucha']) ? $_POST['escucha'] : array();
         musa_fijar($nuevos, 'escucha.proveedor', ($es['proveedor'] ?? '') === 'elevenlabs' ? 'elevenlabs' : 'navegador');
         musa_fijar($nuevos, 'escucha.idioma', in_array($es['idioma'] ?? '', $idiomas, true) ? $es['idioma'] : 'es-CO');
+        musa_fijar($nuevos, 'escucha.respaldo', !empty($es['respaldo']));
 
         foreach (array('reposo', 'hablando') as $clave) {
             $subido = musa_subir_video('video_' . $clave);
@@ -143,10 +154,12 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
         $se = isset($_POST['seguridad']) && is_array($_POST['seguridad']) ? $_POST['seguridad'] : array();
         musa_fijar($nuevos, 'seguridad.maximo_preguntas', (int) musa_rango($se['maximo_preguntas'] ?? 30, 1, 200, 30));
         musa_fijar($nuevos, 'seguridad.respuestas_por_hora', (int) musa_rango($se['respuestas_por_hora'] ?? 600, 0, 20000, 600));
+        musa_fijar($nuevos, 'seguridad.respuestas_por_ip_hora', (int) musa_rango($se['respuestas_por_ip_hora'] ?? 120, 0, 5000, 120));
+        musa_fijar($nuevos, 'seguridad.escucha_minutos_hora', (int) musa_rango($se['escucha_minutos_hora'] ?? 30, 0, 600, 30));
 
         musa_guardar_ajustes($nuevos);
         musa_log('Motor y APIs guardados', array('usuario' => $usuarioActual, 'motor' => musa_dato($nuevos, 'motor.tipo', '')));
-        musa_panel_mensaje('Configuración guardada. Pulsa «Verificar todo» para comprobar cada API.');
+        musa_panel_mensaje('Configuración guardada. Pulsa «Verificar todo» para comprobar cada API.' . $avisoBase, $avisoBase === '' ? 'exito' : 'error');
         header('Location: motor.php');
         exit;
     }
@@ -403,7 +416,9 @@ musa_panel_mensaje();
         <?php endforeach; ?>
       </select></label>
   </div>
-  <p class="nota">La forma de hablar (conversación natural o «mantener presionado») y el micrófono inicial se eligen en <a href="avatar.php">Avatar y tema</a>.</p>
+  <?php musa_casilla('escucha[respaldo]', !empty(musa_dato($a, 'escucha.respaldo', true)), 'Usar ElevenLabs Scribe como respaldo en navegadores sin reconocimiento de voz (Firefox)'); ?>
+  <p class="nota">Scribe cobra por duración: el servidor mide cada audio (WebM/Opus, máximo 30 s) y lo descuenta del tope de minutos por hora de abajo.
+    La forma de hablar (conversación natural o «mantener presionado») y el micrófono inicial se eligen en <a href="avatar.php">Avatar y tema</a>.</p>
 </section>
 
 <section class="bloque-panel" id="videos">
@@ -433,6 +448,10 @@ musa_panel_mensaje();
     <label>Preguntas por conversación<input type="number" name="seguridad[maximo_preguntas]" min="1" max="200" value="<?php echo (int) musa_dato($a, 'seguridad.maximo_preguntas', 30); ?>"></label>
     <label>Respuestas por hora (todas las personas, 0 = sin tope)<input type="number" name="seguridad[respuestas_por_hora]" min="0" max="20000" value="<?php echo (int) musa_dato($a, 'seguridad.respuestas_por_hora', 600); ?>">
       <small class="tenue">Limita el gasto si alguien abre muchas conversaciones a la vez. Las preguntas sugeridas en caché no cuentan.</small></label>
+    <label>Respuestas por hora desde un mismo origen (IP, 0 = sin tope)<input type="number" name="seguridad[respuestas_por_ip_hora]" min="0" max="5000" value="<?php echo (int) musa_dato($a, 'seguridad.respuestas_por_ip_hora', 120); ?>">
+      <small class="tenue">Evita que una sola persona agote el cupo de todas. Súbelo si varios quioscos salen a Internet con la misma IP.</small></label>
+    <label>Minutos de audio por hora para ElevenLabs Scribe (0 = sin tope)<input type="number" name="seguridad[escucha_minutos_hora]" min="0" max="600" value="<?php echo (int) musa_dato($a, 'seguridad.escucha_minutos_hora', 30); ?>">
+      <small class="tenue">30 minutos ≈ USD 0,11 por hora como máximo.</small></label>
   </div>
 </section>
 

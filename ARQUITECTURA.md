@@ -48,8 +48,14 @@ Navegador                          Servidor PHP                         APIs
   `navegador` y `app.js` lee el texto con `speechSynthesis` en frases cortas.
 - El saludo y las respuestas de las preguntas sugeridas se guardan en `wj-content/datos/voz/`
   (`musa_voz_cache_*`, máximo 200 archivos; la clave incluye el tema, el modelo y la voz).
-- `musa_uso_ia_reservar()` aplica `seguridad.respuestas_por_hora` con bloqueo de archivo
-  (`datos/uso-ia.json.php`), que también guarda respuestas, caracteres y segundos de escucha por día.
+- `musa_uso_ia_reservar()` aplica `seguridad.respuestas_por_hora` y `seguridad.respuestas_por_ip_hora`,
+  y `musa_uso_escucha_reservar()` los segundos de Scribe (`seguridad.escucha_minutos_hora`), con
+  bloqueo de archivo de espera acotada (`datos/uso-ia.json.php`), que también guarda respuestas,
+  caracteres y segundos de escucha por día.
+- `musa_audio_segundos()` mide la duración que decodificará Scribe: en WebM recorre los bloques del
+  contenedor (solo `A_OPUS`, sin *lacing*) y suma la duración de cada paquete según su byte TOC
+  (RFC 6716 §3.1); en WAV usa el tamaño de los datos y los bytes por segundo.
+- Las preguntas sugeridas se responden sin historial y su respuesta vence a los 30 días.
 
 | Función | Endpoint | Autenticación |
 |---|---|---|
@@ -172,7 +178,7 @@ Todas las respuestas son JSON. Todas exigen el token CSRF de la página (`token`
 |---|---|---|
 | `POST sesion.php` | `nombre, correo, telefono, ciudad, autorizacion, sitio_web` | `motor, codigo, clave, duracion` y, según el motor, `saludo {texto, audio, tipo, voz}` o `session_id, livekit_url, livekit_token` · 422 errores del formulario · 429 límite por origen · 503 cupo global, archivo lleno o motor sin configurar · 502 LiveAvatar |
 | `POST responder.php` | `codigo, clave, pregunta, origen` (motor económico) | `texto, audio, tipo, voz, restantes` · 429 muy seguido o máximo de preguntas (`fin: true`) · 409 cerrada · 503 tope global por hora · 502 la IA no respondió |
-| `POST transcribir.php` | multipart `token, codigo, clave, audio` (≤ 2 MB; webm, ogg, mp4 o wav por sus primeros bytes) | `texto` · 415 formato · 429 · 503 sin clave de ElevenLabs |
+| `POST transcribir.php` | multipart `token, codigo, clave, audio` (WebM/Opus o WAV, ≤ 512 KB y ≤ 30 s medidos con `musa_audio_segundos()`) | `texto` · 413 muy largo · 415 formato · 429 · 503 sin clave, respaldo desactivado o tope de minutos por hora |
 | `POST mensajes.php` | `codigo, clave, mensajes: [{rol, texto, origen, ref}]` | `total` · 409 conversación cerrada o vencida. En el motor económico no guarda nada. |
 | `POST mantener.php` | `codigo, clave` | `ok` · 429 si hubo otro keep-alive hace menos de 25 s |
 | `POST finalizar.php` | `codigo, clave, motivo, mensajes` | `codigo, preguntas` (en el motor económico se ignoran los `mensajes`) |

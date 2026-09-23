@@ -119,7 +119,8 @@
     },
     "escucha": {
         "proveedor": "navegador",
-        "idioma": "es-CO"
+        "idioma": "es-CO",
+        "respaldo": true
     },
     "animacion": {
         "reposo": "wj-includes/images/avatar/avatar-reposo.mp4",
@@ -170,6 +171,8 @@
         "maximo_mensajes": 400,
         "maximo_preguntas": 30,
         "respuestas_por_hora": 600,
+        "respuestas_por_ip_hora": 120,
+        "escucha_minutos_hora": 30,
         "proxies_confiables": []
     },
     "sistema": {

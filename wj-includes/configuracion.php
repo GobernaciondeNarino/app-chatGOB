@@ -175,6 +175,7 @@ function musa_ajustes_predeterminados() {
         'escucha' => array(
             'proveedor' => 'navegador',                  // navegador | elevenlabs (Scribe)
             'idioma'    => 'es-CO',
+            'respaldo'  => true,                         // Scribe en navegadores sin reconocimiento de voz (Firefox)
         ),
         // Videos en bucle del avatar (motor económico): en reposo y hablando.
         'animacion' => array(
@@ -226,6 +227,8 @@ function musa_ajustes_predeterminados() {
             'maximo_mensajes'     => 400,
             'maximo_preguntas'    => 30,    // preguntas por conversación (motor económico)
             'respuestas_por_hora' => 600,   // respuestas de la IA por hora sumando a todas las personas (tope de gasto)
+            'respuestas_por_ip_hora' => 120, // respuestas por hora de un mismo origen (IP o /64 de IPv6)
+            'escucha_minutos_hora' => 30,   // minutos de audio por hora que se pueden enviar a ElevenLabs Scribe
             // IPs de proxys propios (balanceador, CDN) cuyas cabeceras X-Real-IP
             // o CF-Connecting-IP sí se pueden creer. Vacío = usar solo REMOTE_ADDR.
             'proxies_confiables'  => array(),

@@ -91,6 +91,22 @@ function musa_ia_base_valida($url) {
     return '';
 }
 
+/**
+ * ¿El host de una dirección https apunta a Internet? Se rechazan IP privadas, de loopback y reservadas
+ * (también si el nombre se resuelve a ellas): la clave de la IA no debe viajar a servicios internos.
+ * http://localhost y http://127.0.0.1 se admiten aparte, solo para un modelo local (Ollama).
+ */
+function musa_ia_host_publico($url) {
+    $host = (string) parse_url((string) $url, PHP_URL_HOST);
+    if ($host === '') { return false; }
+    $ips = filter_var($host, FILTER_VALIDATE_IP) ? array($host) : (array) @gethostbynamel($host);
+    if ($ips === array()) { return false; }
+    foreach ($ips as $ip) {
+        if (!filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE)) { return false; }
+    }
+    return true;
+}
+
 /** Proveedor de IA configurado (uno de los presets). */
 function musa_ia_proveedor($ajustes) {
     $proveedor = (string) musa_dato($ajustes, 'ia.proveedor', 'gemini');
@@ -102,7 +118,9 @@ function musa_ia_base($ajustes) {
     $proveedor = musa_ia_proveedor($ajustes);
     $presets = musa_ia_presets();
     if ($proveedor !== 'personalizado') { return $presets[$proveedor]['base_url']; }
-    return musa_ia_base_valida(musa_dato($ajustes, 'ia.base_url', ''));
+    $base = musa_ia_base_valida(musa_dato($ajustes, 'ia.base_url', ''));
+    if ($base !== '' && strpos($base, 'https://') === 0 && !musa_ia_host_publico($base)) { return ''; }
+    return $base;
 }
 
 /** Modelo configurado (solo caracteres de un identificador de modelo). */
@@ -135,11 +153,13 @@ function musa_ia_peticion($ruta, $metodo, $cuerpo, $ajustes, $tiempo = 45) {
     $r = musa_http($base . $ruta, $opciones);
     $json = json_decode((string) $r['cuerpo'], true);
     $ok = $r['ok'] && is_array($json);
+    // Con una dirección personalizada no se muestra el texto del servicio (podría ser uno interno).
+    $personalizada = musa_ia_proveedor($ajustes) === 'personalizado';
     return array(
         'ok'      => $ok,
         'codigo'  => (int) $r['codigo'],
         'datos'   => is_array($json) ? $json : null,
-        'mensaje' => $ok ? '' : musa_api_error('IA', $r, $json),
+        'mensaje' => $ok ? '' : musa_api_error('IA', $r, $personalizada ? null : $json),
         'crudo'   => substr((string) $r['cuerpo'], 0, 600),
     );
 }
@@ -252,8 +272,9 @@ function musa_ia_limpiar($texto, $palabras = 60) {
 
     $lista = preg_split('~\s+~u', $texto, -1, PREG_SPLIT_NO_EMPTY);
     $tope = (int) ceil($palabras * 1.3);
-    if (count($lista) > $tope) {
-        $corto = implode(' ', array_slice($lista, 0, $tope));
+    $maxCaracteres = $palabras * 8;   // la voz se cobra por carácter: un «palabro» de 2 000 letras no pasa
+    if (count($lista) > $tope || mb_strlen($texto, 'UTF-8') > $maxCaracteres) {
+        $corto = mb_substr(implode(' ', array_slice($lista, 0, $tope)), 0, $maxCaracteres, 'UTF-8');
         $fin = max(strrpos($corto, '. '), strrpos($corto, '? '), strrpos($corto, '! '));
         $texto = $fin !== false && $fin > strlen($corto) / 2 ? substr($corto, 0, $fin + 1) : rtrim($corto, ' ,;:') . '.';
     }
@@ -510,6 +531,76 @@ function musa_elevenlabs_transcribir($audio, $tipo, $ajustes) {
     return array('ok' => true, 'texto' => musa_texto((string) ($r['datos']['text'] ?? ''), 1000), 'mensaje' => '');
 }
 
+/**
+ * Duración en segundos de un audio para Scribe, calculada con lo que de verdad decodificará el servicio
+ * (no con metadatos que el visitante puede falsear):
+ *  - WAV PCM de 16 bits: tamaño de los datos ÷ bytes por segundo.
+ *  - WebM con Opus (lo que graban Chrome, Edge y Firefox): se recorren los bloques del contenedor y se
+ *    suma la duración de cada paquete Opus según su byte TOC (RFC 6716, §3.1).
+ * Devuelve null si el formato no es uno de esos o está mal formado (el audio se rechaza).
+ */
+function musa_audio_segundos($datos, $tipo) {
+    if ($tipo === 'audio/wav') {
+        if (strlen($datos) < 44 || substr($datos, 12, 4) !== 'fmt ') { return null; }
+        $fmt = unpack('vformato/vcanales/Vmuestreo/Vbytes', substr($datos, 20, 12));
+        $pos = 12;
+        while ($pos + 8 <= strlen($datos)) {
+            $id = substr($datos, $pos, 4);
+            $tam = unpack('V', substr($datos, $pos + 4, 4))[1];
+            if ($id === 'data') { return $fmt['formato'] === 1 && $fmt['bytes'] > 0 ? min($tam, strlen($datos) - $pos - 8) / $fmt['bytes'] : null; }
+            $pos += 8 + $tam + ($tam % 2);
+        }
+        return null;
+    }
+    if ($tipo !== 'audio/webm') { return null; }
+    $largo = strlen($datos);
+    $leer = function (&$i, $esId) use ($datos, $largo) {
+        if ($i >= $largo) { return null; }
+        $primero = ord($datos[$i]);
+        $bytes = 1; $mascara = 0x80;
+        while ($bytes <= 8 && !($primero & $mascara)) { $bytes++; $mascara >>= 1; }
+        if ($bytes > 8 || $i + $bytes > $largo) { return null; }
+        $valor = $esId ? $primero : ($primero & ($mascara - 1));
+        $todoUnos = !$esId && $valor === $mascara - 1;
+        for ($k = 1; $k < $bytes; $k++) { $b = ord($datos[$i + $k]); $valor = ($valor << 8) | $b; if ($b !== 0xFF) { $todoUnos = false; } }
+        $i += $bytes;
+        return array($valor, $todoUnos);
+    };
+    // Maestros que se recorren por dentro: EBML, Segment, Tracks, TrackEntry, Cluster y BlockGroup.
+    $maestros = array(0x1A45DFA3 => 1, 0x18538067 => 1, 0x1654AE6B => 1, 0xAE => 1, 0x1F43B675 => 1, 0xA0 => 1);
+    $duraciones = array(10, 20, 40, 60);
+    $segundos = 0.0; $bloques = 0; $opus = false;
+    $i = 0;
+    while ($i < $largo) {
+        $id = $leer($i, true);
+        $tam = $leer($i, false);
+        if ($id === null || $tam === null) { return null; }
+        list($id) = $id;
+        list($tam, $desconocido) = $tam;
+        if (isset($maestros[$id])) { continue; }            // se entra al contenido
+        if ($desconocido || $i + $tam > $largo) { return null; }
+        if ($id === 0x86) {                                 // CodecID: solo Opus
+            if (substr($datos, $i, $tam) !== 'A_OPUS') { return null; }
+            $opus = true;
+        } elseif ($id === 0xA3 || $id === 0xA1) {           // SimpleBlock o Block
+            $j = $i;
+            if ($leer($j, false) === null) { return null; } // número de pista
+            $j += 3;                                        // tiempo relativo (2 bytes) y banderas
+            if ($j >= $i + $tam || (ord($datos[$j - 1]) & 0x06) !== 0) { return null; }   // sin «lacing»
+            $toc = ord($datos[$j]);
+            $config = $toc >> 3;
+            $ms = $config < 12 ? $duraciones[$config % 4] : ($config < 16 ? ($config % 2 ? 20 : 10) : array(2.5, 5, 10, 20)[$config % 4]);
+            $codigo = $toc & 3;
+            $tramas = $codigo === 0 ? 1 : ($codigo < 3 ? 2 : ($j + 1 < $i + $tam ? ord($datos[$j + 1]) & 0x3F : 0));
+            if ($tramas < 1) { return null; }
+            $segundos += $ms * $tramas / 1000;
+            if (++$bloques > 20000) { return null; }
+        }
+        $i += $tam;
+    }
+    return $opus && $bloques > 0 ? $segundos : null;
+}
+
 /** Verifica Scribe enviando un segundo de silencio (cuesta una fracción de centavo). */
 function musa_elevenlabs_verificar_escucha($ajustes) {
     $r = musa_elevenlabs_transcribir(musa_wav(str_repeat("\0\0", 16000), 16000), 'audio/wav', $ajustes);
@@ -652,7 +743,11 @@ function musa_voz_cache_guardar($clave, $audio, $tipo) {
 /** Respuesta de texto guardada para una pregunta sugerida, o ''. */
 function musa_respuesta_cache_leer($clave) {
     $datos = musa_leer_json(musa_voz_cache_archivo($clave), null);
-    return is_array($datos) ? (string) ($datos['texto'] ?? '') : '';
+    if (!is_array($datos)) { return ''; }
+    // Vence a los 30 días: una respuesta nunca queda fija para siempre.
+    $fecha = strtotime((string) ($datos['fecha'] ?? ''));
+    if ($fecha === false || $fecha < time() - 30 * 86400) { return ''; }
+    return (string) ($datos['texto'] ?? '');
 }
 
 function musa_respuesta_cache_guardar($clave, $texto) {
@@ -688,7 +783,14 @@ function musa_voz_cache_total() {
 function musa_uso_ia_transaccion($operacion) {
     if (!is_dir(MUSA_DIR_DATOS)) { @mkdir(MUSA_DIR_DATOS, 0775, true); }
     $puntero = @fopen(MUSA_DIR_DATOS . '/uso-ia.lock', 'c');
-    if ($puntero !== false) { @flock($puntero, LOCK_EX); }
+    if ($puntero !== false) {
+        // Espera acotada: una avalancha no deja procesos PHP colgados; si no se consigue, se niega.
+        $limite = microtime(true) + MUSA_ESPERA_BLOQUEO;
+        while (!@flock($puntero, LOCK_EX | LOCK_NB)) {
+            if (microtime(true) >= $limite) { @fclose($puntero); return null; }
+            usleep(50000);
+        }
+    }
     $uso = musa_leer_json(MUSA_ARCHIVO_USO_IA, array());
     $resultado = $operacion($uso);
     if (isset($resultado['datos'])) {
@@ -703,21 +805,46 @@ function musa_uso_ia_transaccion($operacion) {
 }
 
 /**
- * Reserva una respuesta dentro del tope global por hora (seguridad.respuestas_por_hora).
- * Evita que muchas conversaciones abiertas desde muchas IP disparen el gasto en las APIs.
+ * Reserva una respuesta dentro de los topes por hora: el global (seguridad.respuestas_por_hora) y el de
+ * cada origen, IP o /64 de IPv6 (seguridad.respuestas_por_ip_hora), para que una sola persona no agote
+ * el cupo de todas. Devuelve 'ok', 'global', 'origen' u 'ocupado'.
  */
-function musa_uso_ia_reservar($ajustes) {
-    $limite = (int) musa_dato($ajustes, 'seguridad.respuestas_por_hora', 600);
-    return (bool) musa_uso_ia_transaccion(function ($uso) use ($limite) {
+function musa_uso_ia_reservar($ajustes, $ip = '') {
+    $global = (int) musa_dato($ajustes, 'seguridad.respuestas_por_hora', 600);
+    $porOrigen = (int) musa_dato($ajustes, 'seguridad.respuestas_por_ip_hora', 120);
+    $grupo = sha1(musa_ip_grupo($ip));
+    $r = musa_uso_ia_transaccion(function ($uso) use ($global, $porOrigen, $grupo) {
         $hora = date('YmdH');
-        $actual = ($uso['hora'] ?? '') === $hora ? (int) ($uso['respuestas_hora'] ?? 0) : 0;
-        if ($limite > 0 && $actual >= $limite) { return array('retorno' => false); }
-        $uso['hora'] = $hora;
+        if (($uso['hora'] ?? '') !== $hora) { $uso['hora'] = $hora; $uso['respuestas_hora'] = 0; $uso['origenes'] = array(); $uso['escucha_hora'] = 0; }
+        $actual = (int) ($uso['respuestas_hora'] ?? 0);
+        $delOrigen = (int) ($uso['origenes'][$grupo] ?? 0);
+        if ($global > 0 && $actual >= $global) { return array('retorno' => 'global'); }
+        if ($porOrigen > 0 && $delOrigen >= $porOrigen) { return array('retorno' => 'origen'); }
         $uso['respuestas_hora'] = $actual + 1;
+        $uso['origenes'][$grupo] = $delOrigen + 1;
         $dia = date('Y-m-d');
         $uso['dias'][$dia]['respuestas'] = (int) ($uso['dias'][$dia]['respuestas'] ?? 0) + 1;
-        return array('datos' => $uso, 'retorno' => true);
+        return array('datos' => $uso, 'retorno' => 'ok');
     });
+    return $r === null ? 'ocupado' : $r;
+}
+
+/**
+ * Reserva segundos de audio para ElevenLabs Scribe dentro del tope por hora
+ * (seguridad.escucha_minutos_hora). Se reserva antes de enviar el audio. Devuelve true o false.
+ */
+function musa_uso_escucha_reservar($ajustes, $segundos) {
+    $limite = 60 * (int) musa_dato($ajustes, 'seguridad.escucha_minutos_hora', 30);
+    return musa_uso_ia_transaccion(function ($uso) use ($limite, $segundos) {
+        $hora = date('YmdH');
+        if (($uso['hora'] ?? '') !== $hora) { $uso['hora'] = $hora; $uso['respuestas_hora'] = 0; $uso['origenes'] = array(); $uso['escucha_hora'] = 0; }
+        $actual = (float) ($uso['escucha_hora'] ?? 0);
+        if ($limite > 0 && $actual + $segundos > $limite) { return array('retorno' => false); }
+        $uso['escucha_hora'] = $actual + $segundos;
+        $dia = date('Y-m-d');
+        $uso['dias'][$dia]['escucha'] = (float) ($uso['dias'][$dia]['escucha'] ?? 0) + $segundos;
+        return array('datos' => $uso, 'retorno' => true);
+    }) === true;
 }
 
 /** Suma segundos de escucha o caracteres de voz al día actual (para estimar el gasto en el panel). */

@@ -59,7 +59,7 @@ $fuentesVideo = function ($fuentes) {
     foreach ($fuentes as $f) { echo '<source src="' . musa_e($f['url']) . '" type="' . musa_e($f['tipo']) . '">'; }
 };
 $escucha          = (string) musa_dato($ajustes, 'escucha.proveedor', 'navegador');
-$escuchaServidor  = musa_elevenlabs_clave($ajustes) !== '';   // ElevenLabs Scribe disponible como respaldo
+$escuchaServidor  = musa_elevenlabs_clave($ajustes) !== '';   // hay clave de ElevenLabs (Scribe)
 
 $configJs = array(
     'token'            => $token,
@@ -81,7 +81,7 @@ $configJs = array(
     ),
     'escucha'          => array(
         'proveedor' => $escucha === 'elevenlabs' && $escuchaServidor ? 'servidor' : 'navegador',
-        'respaldo'  => $escuchaServidor,
+        'respaldo'  => $escuchaServidor && !empty(musa_dato($ajustes, 'escucha.respaldo', true)),
         'idioma'    => (string) musa_dato($ajustes, 'escucha.idioma', 'es-CO'),
     ),
     'colores'          => array(

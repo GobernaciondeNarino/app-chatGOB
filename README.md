@@ -318,10 +318,19 @@ detallado (TLP:AMBER) se entrega aparte y **no** se publica en este repositorio.
   únicamente con este sitio (`connect-src 'self'`) y no carga el módulo de LiveKit.
 - La voz solo lee textos que genera el servidor (el saludo y las respuestas de la IA), nunca un
   texto enviado por el visitante: el sitio no sirve como lector gratuito.
-- Topes atómicos: preguntas por conversación, una pregunta cada 2 s, audios para Scribe (2 MB,
-  formato comprobado por sus primeros bytes) y **respuestas por hora sumando a todos** (tope de
-  gasto). Las respuestas se guardan desde el servidor como verificadas; lo que envíe el navegador
-  como respuesta del avatar se descarta.
+- Topes atómicos: preguntas por conversación, una pregunta cada 2 s, **respuestas por hora en
+  total y por origen** (IP o /64 de IPv6) y **minutos de audio por hora para Scribe**. Scribe cobra
+  por duración, así que el servidor la mide con lo que de verdad se decodificará (cuenta los
+  paquetes Opus de cada WebM, o usa la cabecera de un WAV), no con los metadatos del archivo: solo
+  acepta WebM/Opus o WAV de hasta 512 KB y 30 s. Las respuestas se guardan desde el servidor como
+  verificadas; lo que envíe el navegador como respuesta del avatar se descarta.
+- Las respuestas de las preguntas sugeridas se generan **sin el historial** de la conversación
+  (otro visitante no puede «sembrar» una respuesta falsa que luego oirían todos) y vencen a los
+  30 días. La voz lee como máximo 8 caracteres por palabra configurada.
+- Con «Otra API», la dirección debe ser pública (se rechazan IP privadas o reservadas, también si el
+  nombre se resuelve a ellas; `http://127.0.0.1` solo para un modelo local) y la clave se borra al
+  cambiar la dirección, para que no pueda enviarse a otro servidor. Los errores de esa dirección no
+  muestran el texto que devuelva.
 - La IA recibe reglas contra el cambio de instrucciones; aun así, el correo institucional quita
   todas las direcciones web de la conversación, también de las respuestas.
 - Los videos subidos se aceptan solo si sus primeros bytes son de MP4 o WebM y quedan con nombre

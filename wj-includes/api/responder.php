@@ -46,12 +46,18 @@ $claveCache = $sugerida ? musa_respuesta_cache_clave($pregunta, $ajustes) : '';
 $texto = $claveCache !== '' ? musa_respuesta_cache_leer($claveCache) : '';
 
 if ($texto === '') {
-    if (!musa_uso_ia_reservar($ajustes)) {
-        musa_log('Respuesta rechazada: se alcanzó el tope global de respuestas por hora');
+    $cupo = musa_uso_ia_reservar($ajustes, (string) $c['ip']);
+    if ($cupo === 'origen') {
+        musa_responder_json(array('ok' => false, 'mensaje' => 'Has hecho muchas preguntas en poco tiempo. Inténtalo de nuevo más tarde.', 'fin' => true), 429);
+    }
+    if ($cupo !== 'ok') {
+        musa_log('Respuesta rechazada: se alcanzó el tope global de respuestas por hora', array('motivo' => $cupo));
         musa_responder_json(array('ok' => false, 'mensaje' => 'El anfitrión está atendiendo a muchas personas. Inténtalo de nuevo en unos minutos.'), 503);
     }
     // Los últimos turnos dan contexto («¿y cómo se prepara?»); solo mensajes del servidor o de la persona.
-    $turnos = max(0, min(12, (int) musa_dato($ajustes, 'ia.historial', 6)));
+    // Las preguntas sugeridas se responden SIN historial: su respuesta se guarda y la oirán otros
+    // visitantes, así que no puede depender de lo que alguien haya dicho antes en su conversación.
+    $turnos = $claveCache !== '' ? 0 : max(0, min(12, (int) musa_dato($ajustes, 'ia.historial', 6)));
     $historial = array();
     foreach ((array) $c['mensajes'] as $m) {
         if (($m['rol'] ?? '') === 'persona' || musa_mensaje_verificado($m)) { $historial[] = $m; }
