@@ -115,18 +115,25 @@
 
   /* Paletas rápidas de color (Apariencia) */
   var PALETAS = {
-    // Manual de identidad visual de la Gobernación de Nariño: verde #10A13B, amarillo #FFD500, azul #003366.
-    institucional: {
-      fondo: '#0B7A2E', fondo_profundo: '#003366', tarjeta: '#0A5C2A', tarjeta_borde: '#10A13B',
+    // Predeterminada: #8F1824 con el amarillo y el verde del Manual de Identidad Visual (contraste AA).
+    predeterminada: {
+      fondo: '#8F1824', fondo_profundo: '#5C0D16', tarjeta: '#761420', tarjeta_borde: '#B03A47',
+      texto: '#FFFFFF', texto_suave: '#F6DCDF', acento: '#FFD500', texto_sobre_acento: '#2B0A0E',
+      acento_secundario: '#10A13B', burbuja_persona: '#FFFFFF', texto_persona: '#8F1824',
+      exito: '#10A13B', error: '#FFB3BC', institucional: '#5C0D16'
+    },
+    // Verde #10A13B y amarillo #FFD500 del manual (fondos oscurecidos para contraste AA).
+    verde: {
+      fondo: '#0B7A2E', fondo_profundo: '#064D1F', tarjeta: '#0A5C2A', tarjeta_borde: '#10A13B',
       texto: '#FFFFFF', texto_suave: '#EAF5EC', acento: '#FFD500', texto_sobre_acento: '#1A1A1A',
-      acento_secundario: '#4FC3F7', burbuja_persona: '#FFFFFF', texto_persona: '#003366',
-      exito: '#10A13B', error: '#FFB3BC', institucional: '#003366'
+      acento_secundario: '#FFFFFF', burbuja_persona: '#FFFFFF', texto_persona: '#0B7A2E',
+      exito: '#10A13B', error: '#FFB3BC', institucional: '#064D1F'
     },
     cafe: {
       fondo: '#AE1D2C', fondo_profundo: '#7E0E1C', tarjeta: '#9F1427', tarjeta_borde: '#C3364A',
       texto: '#F7EFE0', texto_suave: '#EBC9CE', acento: '#F2B705', texto_sobre_acento: '#3A0A10',
-      acento_secundario: '#12A5C4', burbuja_persona: '#F6EDD9', texto_persona: '#5A0B16',
-      exito: '#2E9E6B', error: '#FFB3BC', institucional: '#003366'
+      acento_secundario: '#2E9E6B', burbuja_persona: '#F6EDD9', texto_persona: '#5A0B16',
+      exito: '#2E9E6B', error: '#FFB3BC', institucional: '#7E0E1C'
     }
   };
   $$('[data-paleta]').forEach(function (boton) {

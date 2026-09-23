@@ -33,7 +33,7 @@ function musa_correo_cabecera($texto) {
 /** Arma el cuerpo HTML del correo con la identidad de QuéDice!. */
 function musa_correo_html($c, $ajustes) {
     $colores = musa_dato($ajustes, 'colores', array());
-    $fondo   = musa_color(musa_dato($colores, 'fondo', '#0B7A2E'), '#0B7A2E');
+    $fondo   = musa_color(musa_dato($colores, 'fondo', '#8F1824'), '#8F1824');
     $texto   = musa_color(musa_dato($colores, 'texto', '#FFFFFF'), '#FFFFFF');
     $acento  = musa_color(musa_dato($colores, 'acento', '#FFD500'), '#FFD500');
     $marca   = musa_dato($ajustes, 'marca.nombre', 'QuéDice!');

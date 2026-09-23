@@ -18,7 +18,9 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
         if (!empty($_POST['borrar_clave'])) {
             musa_fijar($nuevos, 'heygen.api_key', '');
         } elseif ($clave !== '') {
-            musa_fijar($nuevos, 'heygen.api_key', preg_replace('/[^A-Za-z0-9_\-.:]/', '', $clave));
+            // Se conserva la clave tal cual (cualquier carácter imprimible: + / = incluidos); solo se
+            // quitan espacios y controles, que además impiden inyectar cabeceras HTTP.
+            musa_fijar($nuevos, 'heygen.api_key', preg_replace('/[^\x21-\x7E]/', '', $clave));
             // Clave nueva: puede ser otra cuenta, así que el contexto se crea de nuevo.
             musa_fijar($nuevos, 'heygen.context_id', '');
             musa_fijar($nuevos, 'heygen.context_huella', '');
@@ -169,9 +171,13 @@ musa_panel_mensaje();
       <input type="password" name="heygen[api_key]" autocomplete="off" placeholder="<?php echo musa_e(musa_enmascarar_clave($clave)); ?>">
     </label>
     <?php musa_casilla('borrar_clave', false, 'Borrar la clave guardada'); ?>
-    <label>Endpoint (solo https://api.liveavatar.com o localhost para pruebas)<input type="text" name="heygen[endpoint]" value="<?php echo musa_e(musa_dato($ajustesPanel, 'heygen.endpoint', 'https://api.liveavatar.com')); ?>"></label>
+    <label>Endpoint<input type="text" name="heygen[endpoint]" value="<?php echo musa_e(musa_dato($ajustesPanel, 'heygen.endpoint', 'https://api.liveavatar.com')); ?>">
+      <small class="tenue">Solo https://api.liveavatar.com (o localhost para pruebas).</small></label>
   </div>
-  <p class="nota">La clave se obtiene en <a href="https://app.liveavatar.com" target="_blank" rel="noopener">app.liveavatar.com</a> → Developers.
+  <p class="nota"><strong>Importante:</strong> los avatares en tiempo real de HeyGen funcionan con la plataforma
+    <strong>LiveAvatar</strong>, que tiene su propia cuenta y su propia clave: se obtiene en
+    <a href="https://app.liveavatar.com/developers" target="_blank" rel="noopener">app.liveavatar.com/developers</a>.
+    La clave de la API de videos de HeyGen (app.heygen.com) <strong>no sirve aquí</strong>; si la pegas, «Verificar todo» te lo indicará.
     Se guarda en <code>wj-content/config/ajustes.json.php</code> (fuera del repositorio) y nunca llega al navegador de los visitantes.</p>
 </section>
 <div class="acciones-panel"><button type="submit" class="boton">Guardar credenciales</button></div>

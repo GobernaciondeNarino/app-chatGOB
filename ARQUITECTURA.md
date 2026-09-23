@@ -1,4 +1,4 @@
-# QuéDice! · Documento técnico (versión 2.3.0)
+# QuéDice! · Documento técnico (versión 2.4.0)
 
 Complemento del `README.md` para quien vaya a mantener o ampliar el sistema.
 
@@ -178,7 +178,7 @@ el resumen por correo desde el panel.
 
 ### Distribución: un solo contenedor sin scroll
 - `html` y `body` tienen `overflow: hidden`; todo vive en `div#app` (100 % × `100vh`/`100dvh`)
-  con una rejilla de filas: franja GOV.CO (opcional) · cabecera · **escenario** (`1fr`, el avatar
+  con una rejilla de filas: cabecera · **escenario** (`1fr`, el avatar
   al centro con `aspect-ratio` configurable) · **panel inferior** (transcripción, sugerencias,
   entrada y controles). Solo la transcripción se desplaza por dentro, con un desvanecido en su
   borde superior.
@@ -234,4 +234,4 @@ el resumen por correo desde el panel.
 
 ---
 
-Gobernación de Nariño · QuéDice! · versión 2.3.0
+Gobernación de Nariño · QuéDice! · versión 2.4.0

@@ -1,16 +1,15 @@
 /* QuéDice! · Panel de administración */
 
 :root {
-  /* Paleta institucional (Manual de Identidad Visual, Gobernación de Nariño, 2024):
-     azul #003366, verde #10A13B (#0B7A2E cuando es texto sobre blanco), amarillo #FFD500. */
-  --panel-primario: #003366;
-  --panel-primario-oscuro: #00264D;
+  /* Color principal #8F1824 (9:1 sobre blanco), amarillo #FFD500 y verde #0B7A2E del manual. */
+  --panel-primario: #8F1824;
+  --panel-primario-oscuro: #6B111B;
   --panel-crema: #FFFFFF;
   --panel-acento: #FFD500;
   --panel-texto: #1D1D1F;
   --panel-tenue: #4A4A4A;
-  --panel-borde: #D9DEE5;
-  --panel-fondo: #F5F6F8;
+  --panel-borde: #E4DADB;
+  --panel-fondo: #F7F4F4;
   --panel-ok: #0B7A2E;
   --panel-mal: #B3261E;
   --panel-aviso: #8A5A00;
@@ -116,7 +115,7 @@ input[type="number"], input[type="search"], input[type="date"], select, textarea
 textarea { resize: vertical; }
 
 input:focus, select:focus, textarea:focus {
-  outline: 2px solid rgba(0, 51, 102, .35);
+  outline: 2px solid rgba(143, 24, 36, .35);
   outline-offset: 1px;
   border-color: var(--panel-primario);
 }
@@ -176,7 +175,7 @@ input:focus, select:focus, textarea:focus {
 .alerta.error { border-color: var(--panel-mal); background: #FDECEA; color: #7A1A14; }
 
 .nota { font-size: 12.5px; color: var(--panel-tenue); margin: 10px 0 0; }
-.nota code, code { background: #EEF1F5; padding: 1px 6px; border-radius: 5px; font-size: 12px; }
+.nota code, code { background: #F3ECEC; padding: 1px 6px; border-radius: 5px; font-size: 12px; }
 .tenue { display: block; color: var(--panel-tenue); font-size: 12.5px; }
 .vacio { background: #fff; border: 1px dashed var(--panel-borde); border-radius: 14px; padding: 40px; text-align: center; color: var(--panel-tenue); }
 

@@ -16,7 +16,7 @@ formulario de inicio.
 
 | Parte | Descripción |
 |---|---|
-| **Interfaz pública** (`index.php`) | Un solo contenedor `div#app` de 100 % de ancho y 100vh de alto, **sin scroll**. Avatar en video en el centro, escena 3D con **three.js** (granos de café, vapor y un aura que reacciona a la voz del avatar) y abajo el panel con la transcripción en vivo, preguntas escritas y sugeridas, micrófono, interrumpir y terminar. Franja GOV.CO y botón de accesibilidad (texto grande y alto contraste). |
+| **Interfaz pública** (`index.php`) | Un solo contenedor `div#app` de 100 % de ancho y 100vh de alto, **sin scroll**. Avatar en video en el centro, escena 3D con **three.js** (granos de café, vapor y un aura que reacciona a la voz del avatar) y abajo el panel con la transcripción en vivo, preguntas escritas y sugeridas, micrófono, interrumpir y terminar. Botón de accesibilidad (texto grande y alto contraste). |
 | **Formulario de inicio** | Opcional: nombre, correo, municipio (lista de los 64 municipios de Nariño o texto libre), teléfono y autorización de datos (Ley 1581). Se activa o desactiva y se eligen sus campos desde el panel. |
 | **Panel** (`wj-admin/`) | Conversaciones con todas las preguntas y respuestas, casillas **Creado** y **Enviado**, exportación CSV/JSON, avatar y tema, API de HeyGen con verificación, apariencia, correo y credenciales. |
 | **Núcleo** (`wj-includes/`) | Configuración, almacenamiento JSON, seguridad, correo, cliente de HeyGen LiveAvatar y la API pública. |
@@ -38,7 +38,14 @@ y su especificación [openapi.json](https://docs.liveavatar.com/openapi.json), y
 [Introducing LiveAvatar](https://help.heygen.com/en/articles/12758516-introducing-liveavatar).
 HeyGen no publica en esas páginas una fecha exacta de cierre de la API anterior.
 
-- **La clave, el avatar y la voz deben ser de LiveAvatar** (`app.liveavatar.com`). Según HeyGen,
+- **La clave debe ser de LiveAvatar:** se crea en
+  [app.liveavatar.com/developers](https://app.liveavatar.com/developers), con su propia cuenta.
+  La clave de la API de videos de HeyGen (app.heygen.com, la que se verifica con
+  `GET api.heygen.com/v3/users/me`) **no sirve**: la documentación de HeyGen remite los avatares en
+  tiempo real a LiveAvatar y la API anterior ya no existe (`POST api.heygen.com/v1/streaming.new`
+  responde 404, comprobado en septiembre de 2026). Si se pega una clave de HeyGen, «Verificar
+  todo» lo detecta y lo indica.
+- **El avatar y la voz también deben ser de LiveAvatar** (`app.liveavatar.com`). Según HeyGen,
   los avatares creados en HeyGen no son compatibles directamente con LiveAvatar: se migran con
   su ayuda y pueden quedar con otro ID.
 - Los ID configurados de fábrica son los entregados para este proyecto:
@@ -134,16 +141,16 @@ HeyGen no publica en esas páginas una fecha exacta de cierre de la API anterior
 | **Ver mis avatares y voces** | Lista los avatares y voces de la cuenta con sus ID. | No |
 
 ### Apariencia y formulario
-- **Identidad:** nombre, eslogan, entidad, sitio de la entidad y la **franja GOV.CO** superior
-  (activable), como pide el manual de sitios web de la Gobernación.
+- **Identidad:** nombre, eslogan, entidad y sitio de la entidad (enlace del pie de página).
 - **Imágenes y logos:** imagen del avatar (se ve mientras conecta), logo, **imagen de fondo de
-  pantalla completa** con control de visibilidad (0-100 %), decoraciones de esquina y lateral,
-  logo de la entidad para la franja GOV.CO y favicon. Puedes elegir una existente o subir una nueva
+  pantalla completa** con control de visibilidad (0-100 %), decoraciones de esquina y lateral
+  y favicon. Puedes elegir una existente o subir una nueva
   (`wj-content/subidas`, máximo 5 MB).
-- **Colores:** catorce colores con selector visual y dos paletas en un clic:
-  **Institucional Gobernación de Nariño** (verde #10A13B, amarillo #FFD500, azul #003366 del
-  Manual de Identidad Visual 2024, con los verdes ajustados para cumplir contraste AA;
-  predeterminada) y **Café** (rojo y dorado).
+- **Colores:** catorce colores con selector visual y tres paletas en un clic: **Predeterminada**
+  (color principal #8F1824, con el amarillo #FFD500 y el verde #10A13B del Manual de Identidad
+  Visual como acentos), **Verde institucional** y **Café** (rojo y dorado). Todas cumplen contraste
+  AA. Al actualizar, los colores que seguían con los valores predeterminados anteriores (y cualquier
+  azul) pasan solos a la paleta #8F1824; los que elegiste a mano se respetan.
 - **Formulario de inicio:** activarlo o no («saber con quién se habla») y qué campos pedir
   (correo, municipio, teléfono) y cuáles son obligatorios. El municipio puede elegirse de la
   **lista de los 64 municipios de Nariño** (con «Otro municipio» opcional) o escribirse libre.
@@ -337,4 +344,4 @@ movimiento y transparencia reducidos). Ninguna es necesaria en el servidor.
 
 ---
 
-Gobernación de Nariño · QuéDice! · versión 2.3.0
+Gobernación de Nariño · QuéDice! · versión 2.4.0

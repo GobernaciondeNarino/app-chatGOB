@@ -35,7 +35,6 @@ $logo        = $imagen(musa_dato($marca, 'logo', ''), 'wj-includes/images/quedic
 $rama        = $imagen(musa_dato($marca, 'fondo', ''));
 $barra       = $imagen(musa_dato($marca, 'barra', ''));
 $fondo       = $imagen(musa_dato($marca, 'imagen_fondo', ''));
-$logoEntidad = $imagen(musa_dato($marca, 'logo_entidad', ''));
 $favicon     = $imagen(musa_dato($marca, 'favicon', ''), 'wj-includes/images/quedice/icono-quedice.png');
 $retrato     = $imagen(musa_dato($avatar, 'retrato', ''), 'wj-includes/images/avatar/avatar-cafe.webp');
 
@@ -45,7 +44,6 @@ $permitirEscribir = !empty(musa_dato($avatar, 'permitir_escribir', true));
 $sugerencias      = musa_sugerencias($ajustes);
 $nombreAvatar     = (string) musa_dato($avatar, 'nombre', 'Anfitrión');
 $disponible       = musa_heygen_configurado($ajustes);
-$mostrarGovco     = !empty(musa_dato($marca, 'mostrar_govco', true));
 $entidad          = (string) musa_dato($marca, 'entidad', 'Gobernación de Nariño');
 $sitioEntidad     = musa_url_externa(musa_dato($marca, 'sitio_entidad', ''));
 $opacidadFondo    = max(0, min(100, (int) musa_dato($marca, 'opacidad_fondo', 35))) / 100;
@@ -67,11 +65,11 @@ $configJs = array(
         'pulsarHablar' => musa_dato($avatar, 'interactividad', 'CONVERSATIONAL') === 'PUSH_TO_TALK',
     ),
     'colores'          => array(
-        'fondo'    => $c('fondo', '#0B7A2E'),
-        'profundo' => $c('fondo_profundo', '#003366'),
+        'fondo'    => $c('fondo', '#8F1824'),
+        'profundo' => $c('fondo_profundo', '#5C0D16'),
         'texto'    => $c('texto', '#FFFFFF'),
         'acento'   => $c('acento', '#FFD500'),
-        'acento2'  => $c('acento_secundario', '#4FC3F7'),
+        'acento2'  => $c('acento_secundario', '#10A13B'),
     ),
     'textos'           => array(
         'conectando' => $t('conectando', 'Preparando al anfitrión…'),
@@ -89,23 +87,23 @@ $configJs = array(
 );
 
 $css = array(
-    '--musa-fondo'             => $c('fondo', '#0B7A2E'),
-    '--musa-fondo-profundo'    => $c('fondo_profundo', '#003366'),
-    '--musa-fondo-rgb'         => musa_color_rgb($c('fondo_profundo', '#003366'), '0, 51, 102'),
-    '--musa-tarjeta'           => $c('tarjeta', '#0A5C2A'),
-    '--musa-tarjeta-borde'     => $c('tarjeta_borde', '#10A13B'),
+    '--musa-fondo'             => $c('fondo', '#8F1824'),
+    '--musa-fondo-profundo'    => $c('fondo_profundo', '#5C0D16'),
+    '--musa-fondo-rgb'         => musa_color_rgb($c('fondo_profundo', '#5C0D16'), '92, 13, 22'),
+    '--musa-tarjeta'           => $c('tarjeta', '#761420'),
+    '--musa-tarjeta-borde'     => $c('tarjeta_borde', '#B03A47'),
     '--musa-texto'             => $c('texto', '#FFFFFF'),
     '--musa-texto-rgb'         => musa_color_rgb($c('texto', '#FFFFFF'), '255, 255, 255'),
-    '--musa-texto-suave'       => $c('texto_suave', '#EAF5EC'),
+    '--musa-texto-suave'       => $c('texto_suave', '#F6DCDF'),
     '--musa-acento'            => $c('acento', '#FFD500'),
     '--musa-acento-rgb'        => musa_color_rgb($c('acento', '#FFD500'), '255, 213, 0'),
-    '--musa-sobre-acento'      => $c('texto_sobre_acento', '#1A1A1A'),
-    '--musa-acento-secundario' => $c('acento_secundario', '#4FC3F7'),
+    '--musa-sobre-acento'      => $c('texto_sobre_acento', '#2B0A0E'),
+    '--musa-acento-secundario' => $c('acento_secundario', '#10A13B'),
     '--musa-burbuja-persona'   => $c('burbuja_persona', '#FFFFFF'),
-    '--musa-texto-persona'     => $c('texto_persona', '#003366'),
+    '--musa-texto-persona'     => $c('texto_persona', '#8F1824'),
     '--musa-exito'             => $c('exito', '#10A13B'),
     '--musa-error'             => $c('error', '#FFB3BC'),
-    '--musa-institucional'     => $c('institucional', '#003366'),
+    '--musa-institucional'     => $c('institucional', '#5C0D16'),
     '--musa-opacidad-fondo'    => (string) $opacidadFondo,
     '--musa-proporcion'        => $proporcion,
 );
@@ -118,7 +116,7 @@ if ($fondo !== '') { $css['--musa-imagen-fondo'] = 'url(' . implode('/', array_m
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="description" content="<?php echo musa_e(musa_dato($marca, 'descripcion', '')); ?>">
-<meta name="theme-color" content="<?php echo musa_e($c('fondo_profundo', '#003366')); ?>">
+<meta name="theme-color" content="<?php echo musa_e($c('fondo_profundo', '#5C0D16')); ?>">
 <title><?php echo musa_e(musa_dato($marca, 'titulo_sitio', 'QuéDice!')); ?></title>
 <?php if ($favicon !== '') : ?><link rel="icon" href="<?php echo musa_e($favicon); ?>"><?php endif; ?>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -130,7 +128,7 @@ if ($fondo !== '') { $css['--musa-imagen-fondo'] = 'url(' . implode('/', array_m
 </head>
 <body class="estado-inicio">
 
-<div id="app" class="app<?php echo $mostrarGovco ? ' con-govco' : ''; ?>">
+<div id="app" class="app">
 
   <?php if ($fondo !== '') : ?><div class="capa-fondo" aria-hidden="true"></div><?php endif; ?>
   <canvas id="escena" aria-hidden="true"></canvas>
@@ -138,15 +136,6 @@ if ($fondo !== '') { $css['--musa-imagen-fondo'] = 'url(' . implode('/', array_m
   <?php if ($barra !== '') : ?><img class="deco deco-barra" src="<?php echo musa_e($barra); ?>" alt="" aria-hidden="true"><?php endif; ?>
 
   <a class="saltar" href="#pregunta">Ir a la caja de preguntas</a>
-
-  <?php if ($mostrarGovco) : ?>
-  <div class="govco" role="navigation" aria-label="Portal del Estado colombiano">
-    <a class="govco-marca" href="https://www.gov.co" target="_blank" rel="noopener" aria-label="GOV.CO, portal del Estado colombiano">GOV.CO</a>
-    <a class="govco-entidad" href="<?php echo musa_e($sitioEntidad !== '' ? $sitioEntidad : 'https://www.narino.gov.co'); ?>" target="_blank" rel="noopener">
-      <?php if ($logoEntidad !== '') : ?><img src="<?php echo musa_e($logoEntidad); ?>" alt="<?php echo musa_e($entidad); ?>"><?php else : ?><?php echo musa_e($entidad); ?><?php endif; ?>
-    </a>
-  </div>
-  <?php endif; ?>
 
   <header class="cabecera">
     <?php if ($logo !== '') : ?>
@@ -264,7 +253,11 @@ if ($fondo !== '') { $css['--musa-imagen-fondo'] = 'url(' . implode('/', array_m
     </div>
 
     <p class="pie">
-      <span><?php echo musa_e($t('pie', 'Gobernación de Nariño')); ?></span>
+      <?php if ($sitioEntidad !== '') : ?>
+        <a href="<?php echo musa_e($sitioEntidad); ?>" target="_blank" rel="noopener"><?php echo musa_e($t('pie', $entidad)); ?></a>
+      <?php else : ?>
+        <span><?php echo musa_e($t('pie', $entidad)); ?></span>
+      <?php endif; ?>
       <span class="hora-legal">Hora legal colombiana: <time id="hora-legal">—</time></span>
     </p>
   </section>

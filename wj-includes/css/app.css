@@ -26,7 +26,7 @@ body {
   background: var(--musa-fondo-profundo);
 }
 
-h1, h2, h3, .velo-nombre, .govco-marca { font-family: "Hind Madurai", "Nunito Sans", system-ui, sans-serif; line-height: 1.15; }
+h1, h2, h3, .velo-nombre { font-family: "Hind Madurai", "Nunito Sans", system-ui, sans-serif; line-height: 1.15; }
 button, input, select, textarea { font: inherit; color: inherit; }
 img { max-width: 100%; }
 [hidden] { display: none !important; }
@@ -57,10 +57,6 @@ img { max-width: 100%; }
     radial-gradient(120% 90% at 50% 30%, var(--musa-fondo) 0%, var(--musa-fondo) 34%, var(--musa-fondo-profundo) 100%);
   isolation: isolate;
 }
-.app.con-govco {
-  grid-template-rows: auto auto minmax(0, 1fr) auto;
-  grid-template-areas: "govco" "cabecera" "escenario" "dock";
-}
 
 .capa-fondo {
   position: absolute; inset: 0; z-index: -2;
@@ -75,7 +71,7 @@ img { max-width: 100%; }
 .deco-rama { top: 0; right: 0; width: min(28vw, 400px); height: auto; }
 .deco-barra { left: 0; bottom: 0; height: min(70%, 680px); width: auto; opacity: .9; }
 
-.govco, .cabecera, .escenario, .dock { position: relative; z-index: 2; min-width: 0; }
+.cabecera, .escenario, .dock { position: relative; z-index: 2; min-width: 0; }
 
 .saltar {
   position: absolute; left: 12px; top: -80px; z-index: 50;
@@ -83,20 +79,6 @@ img { max-width: 100%; }
   padding: 10px 16px; border-radius: 12px; font-weight: 700; text-decoration: none;
 }
 .saltar:focus { top: 12px; }
-
-/* ---------- Franja GOV.CO (manual de sitios web de la Gobernación) ---------- */
-
-.govco {
-  grid-area: govco;
-  display: flex; align-items: center; justify-content: space-between; gap: 16px;
-  min-height: 34px; padding: 4px clamp(16px, 3vw, 32px);
-  background: var(--musa-institucional); color: #fff; font-size: 13px;
-}
-.govco a { color: #fff; text-decoration: none; display: inline-flex; align-items: center; min-height: 26px; }
-.govco a:hover { text-decoration: underline; }
-.govco-marca { font-weight: 700; font-size: 17px; letter-spacing: .5px; }
-.govco-entidad { font-weight: 600; }
-.govco-entidad img { height: 24px; width: auto; }
 
 /* ---------- Cabecera ---------- */
 
@@ -128,12 +110,12 @@ img { max-width: 100%; }
 .reloj.alerta { background: var(--musa-acento); color: var(--musa-sobre-acento); border-color: transparent; }
 
 .boton-accesible {
-  width: 44px; height: 44px; border-radius: 50%; border: 0; cursor: pointer;
+  width: 44px; height: 44px; border-radius: 50%; border: 1.5px solid rgba(255, 255, 255, .6); cursor: pointer;
   display: inline-flex; align-items: center; justify-content: center;
   background: var(--musa-institucional); color: #fff;
   box-shadow: 0 6px 16px rgba(0, 0, 0, .25);
 }
-.boton-accesible[aria-pressed="true"] { outline: 3px solid #fff; outline-offset: 2px; }
+.boton-accesible[aria-pressed="true"] { background: var(--musa-acento); color: var(--musa-sobre-acento); border-color: transparent; }
 
 /* ================================================================== */
 /*  Escenario: el avatar al centro                                        */
@@ -323,6 +305,8 @@ body.estado-hablando .ondas i { animation: onda .7s ease-in-out infinite; }
   margin: 0; padding: 0 8px; font-size: 12px; color: var(--musa-texto-suave);
 }
 .hora-legal time { font-variant-numeric: tabular-nums; color: var(--musa-texto); }
+.app a { color: inherit; }
+.pie a { color: var(--musa-texto); text-decoration: underline; text-underline-offset: 2px; }
 
 /* ---------- Botones ---------- */
 
@@ -426,7 +410,6 @@ body.sin-webgl #escena { display: none; }
   .mensaje { max-width: 94%; }
   .control { width: 44px; height: 44px; }
   .pie .hora-legal { display: none; }
-  .govco { font-size: 12px; }
 }
 
 /* Pantallas bajas: se ocultan los accesorios antes que el avatar */
@@ -441,12 +424,11 @@ body.sin-webgl #escena { display: none; }
 
 /* Horizontal y bajo (celular acostado, pantallas de kiosco anchas): avatar y panel lado a lado */
 @media (orientation: landscape) and (max-height: 560px) {
-  .app, .app.con-govco {
+  .app {
     grid-template-columns: minmax(0, 1fr) minmax(300px, 46%);
     grid-template-rows: auto minmax(0, 1fr);
     grid-template-areas: "cabecera cabecera" "escenario dock";
   }
-  .govco { display: none; }
   .cabecera { padding-top: 6px; }
   .logo { height: 36px; }
   .titulos h1 { font-size: 18px; }

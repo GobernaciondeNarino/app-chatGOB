@@ -343,10 +343,35 @@ function musa_heygen_transcripcion($sessionId, $ajustes = null) {
 
 /** Verifica la clave consultando los créditos (no consume créditos). */
 function musa_heygen_verificar($ajustes = null) {
+    if ($ajustes === null) { $ajustes = musa_ajustes(); }
     $r = musa_heygen_peticion('/v1/users/credits', 'GET', null, $ajustes);
-    if (!$r['ok']) { return array('ok' => false, 'mensaje' => $r['mensaje'], 'detalle' => $r['crudo']); }
+    if (!$r['ok']) {
+        $mensaje = $r['mensaje'];
+        // Clave rechazada por LiveAvatar: se averigua si es una clave de la API de videos de HeyGen,
+        // el error más común (son plataformas y cuentas distintas).
+        if (in_array($r['codigo'], array(401, 403), true)) { $mensaje .= ' ' . musa_heygen_diagnosticar_clave($ajustes); }
+        return array('ok' => false, 'mensaje' => $mensaje, 'detalle' => $r['crudo']);
+    }
     $creditos = is_array($r['datos']) && isset($r['datos']['credits_left']) ? (string) $r['datos']['credits_left'] : '—';
     return array('ok' => true, 'mensaje' => 'Conexión correcta con LiveAvatar. Créditos disponibles: ' . $creditos . '.', 'creditos' => $creditos, 'detalle' => '');
+}
+
+/**
+ * Diagnóstico de una clave que LiveAvatar rechazó: se prueba contra el endpoint documentado de la API de
+ * HeyGen para verificar claves (GET https://api.heygen.com/v3/users/me, cabecera X-Api-Key).
+ * Solo se ejecuta desde «Verificar todo» del panel y nunca con el simulador local.
+ */
+function musa_heygen_diagnosticar_clave($ajustes) {
+    $clave = trim((string) musa_dato($ajustes, 'heygen.api_key', ''));
+    if ($clave === '' || strpos(musa_heygen_endpoint_valido(musa_dato($ajustes, 'heygen.endpoint', '')), 'https://') !== 0) { return ''; }
+    $r = musa_http('https://api.heygen.com/v3/users/me', array('metodo' => 'GET', 'cabeceras' => array('Accept: application/json', 'X-Api-Key: ' . $clave), 'tiempo' => 15));
+    if ($r['ok']) {
+        return 'Esta clave es de la API de videos de HeyGen (app.heygen.com), no de LiveAvatar. Los avatares en tiempo real usan una cuenta y una clave de LiveAvatar: créala en app.liveavatar.com/developers y pégala aquí.';
+    }
+    if ((int) $r['codigo'] === 401 || (int) $r['codigo'] === 403) {
+        return 'Tampoco es una clave válida de HeyGen. Cópiala de nuevo completa desde app.liveavatar.com/developers (sin espacios) y guárdala otra vez.';
+    }
+    return '';
 }
 
 /** Verifica que el avatar exista y esté activo. */

@@ -60,7 +60,7 @@ $etiquetasColor = array(
     'acento' => 'Acento (botones y aura)', 'texto_sobre_acento' => 'Texto sobre el acento',
     'acento_secundario' => 'Acento secundario (escuchando)', 'burbuja_persona' => 'Burbuja de la persona',
     'texto_persona' => 'Texto de la burbuja de la persona', 'exito' => 'Éxito', 'error' => 'Error',
-    'institucional' => 'Institucional (franja GOV.CO y accesibilidad)',
+    'institucional' => 'Botón de accesibilidad',
 );
 
 $etiquetasTexto = array(
@@ -87,7 +87,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
     musa_fijar($nuevos, 'marca.sitio_entidad', musa_url_externa(musa_texto(isset($_POST['marca']['sitio_entidad']) ? $_POST['marca']['sitio_entidad'] : '', 200)));
     $imagenes = array(
         'marca.logo' => 'logo', 'marca.imagen_fondo' => 'imagen_fondo', 'marca.fondo' => 'fondo', 'marca.barra' => 'barra',
-        'marca.logo_entidad' => 'logo_entidad', 'marca.favicon' => 'favicon', 'avatar.retrato' => 'retrato',
+        'marca.favicon' => 'favicon', 'avatar.retrato' => 'retrato',
     );
     foreach ($imagenes as $ruta => $campo) {
         $subida = musa_subir_imagen('archivo_' . $campo);
@@ -96,7 +96,6 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
     }
 
     musa_fijar($nuevos, 'marca.opacidad_fondo', max(0, min(100, (int) ($_POST['marca']['opacidad_fondo'] ?? 35))));
-    musa_fijar($nuevos, 'marca.mostrar_govco', !empty($_POST['marca']['mostrar_govco']));
 
     foreach (array_keys($etiquetasColor) as $clave) {
         $color = musa_color(isset($_POST['colores'][$clave]) ? $_POST['colores'][$clave] : '', null);
@@ -149,9 +148,8 @@ musa_panel_mensaje();
     <label>Eslogan<input type="text" name="marca[eslogan]" value="<?php echo musa_e(musa_dato($ajustesPanel, 'marca.eslogan', '')); ?>"></label>
     <label>Entidad<input type="text" name="marca[entidad]" value="<?php echo musa_e(musa_dato($ajustesPanel, 'marca.entidad', '')); ?>"></label>
     <label>Título del sitio (pestaña)<input type="text" name="marca[titulo_sitio]" value="<?php echo musa_e(musa_dato($ajustesPanel, 'marca.titulo_sitio', '')); ?>"></label>
-    <label>Sitio de la entidad<input type="url" name="marca[sitio_entidad]" placeholder="https://" value="<?php echo musa_e(musa_dato($ajustesPanel, 'marca.sitio_entidad', '')); ?>"></label>
+    <label>Sitio de la entidad (enlace del pie)<input type="url" name="marca[sitio_entidad]" placeholder="https://" value="<?php echo musa_e(musa_dato($ajustesPanel, 'marca.sitio_entidad', '')); ?>"></label>
     <label class="ancho-total">Descripción (SEO)<input type="text" name="marca[descripcion]" value="<?php echo musa_e(musa_dato($ajustesPanel, 'marca.descripcion', '')); ?>"></label>
-    <?php musa_casilla('marca[mostrar_govco]', !empty(musa_dato($ajustesPanel, 'marca.mostrar_govco', true)), 'Mostrar la franja superior GOV.CO con el nombre o logo de la entidad'); ?>
   </div>
 </section>
 
@@ -164,7 +162,6 @@ musa_panel_mensaje();
         'imagen_fondo' => array('Imagen de fondo (pantalla completa)', 'marca.imagen_fondo'),
         'fondo'        => array('Decoración de la esquina superior', 'marca.fondo'),
         'barra'        => array('Decoración lateral', 'marca.barra'),
-        'logo_entidad' => array('Logo de la entidad (franja GOV.CO)', 'marca.logo_entidad'),
         'favicon'      => array('Favicon', 'marca.favicon'),
     ) as $campo => $info) :
         $valor = (string) musa_dato($ajustesPanel, $info[1], ''); ?>
@@ -193,7 +190,8 @@ musa_panel_mensaje();
 <section class="bloque-panel">
   <h2>Colores</h2>
   <p class="nota">Paletas rápidas (luego pulsa «Guardar cambios»):
-    <button type="button" class="boton-linea pequeno" data-paleta="institucional">Institucional Gobernación de Nariño (predeterminada)</button>
+    <button type="button" class="boton-linea pequeno" data-paleta="predeterminada">Predeterminada (#8F1824)</button>
+    <button type="button" class="boton-linea pequeno" data-paleta="verde">Verde institucional</button>
     <button type="button" class="boton-linea pequeno" data-paleta="cafe">Café (rojo y dorado)</button></p>
   <div class="rejilla colores">
     <?php foreach ($etiquetasColor as $clave => $etiqueta) :
