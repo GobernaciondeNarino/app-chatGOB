@@ -1,4 +1,4 @@
-# QuéDice! · Documento técnico (versión 2.2.0)
+# QuéDice! · Documento técnico (versión 2.3.0)
 
 Complemento del `README.md` para quien vaya a mantener o ampliar el sistema.
 
@@ -119,17 +119,25 @@ Todas las respuestas son JSON. Todas exigen el token CSRF de la página (`token`
 
 | Punto | Cuerpo | Respuesta |
 |---|---|---|
-| `POST sesion.php` | `nombre, correo, telefono, ciudad, autorizacion, sitio_web` | `codigo, clave, session_id, livekit_url, livekit_token, duracion` · 422 errores del formulario · 429 límite · 502/503 LiveAvatar |
-| `POST mensajes.php` | `codigo, clave, mensajes: [{rol, texto, origen, ref}]` | `total` |
-| `POST mantener.php` | `codigo, clave` | `ok` |
+| `POST sesion.php` | `nombre, correo, telefono, ciudad, autorizacion, sitio_web` | `codigo, clave, session_id, livekit_url, livekit_token, duracion` · 422 errores del formulario · 429 límite por origen · 503 cupo global, archivo lleno o sin clave · 502 LiveAvatar |
+| `POST mensajes.php` | `codigo, clave, mensajes: [{rol, texto, origen, ref}]` | `total` · 409 conversación cerrada o vencida |
+| `POST mantener.php` | `codigo, clave` | `ok` · 429 si hubo otro keep-alive hace menos de 25 s |
 | `POST finalizar.php` | `codigo, clave, motivo, mensajes` | `codigo, preguntas` |
 
 - `clave` es un token aleatorio de 32 caracteres creado con la conversación: sin él no se puede
   escribir en una conversación ajena.
 - `finalizar.php` acepta el cuerpo como `text/plain` porque `navigator.sendBeacon()` lo envía así
   al cerrar la pestaña.
-- `rol` solo puede ser `persona` o `avatar`; los textos se limpian y se cortan a 2 000 caracteres;
-  `ref` evita duplicados cuando un lote se reintenta.
+- `rol` solo puede ser `persona` o `avatar`; los textos se limpian (UTF-8 inválido, controles,
+  caracteres invisibles y U+2028) y se cortan a 1 000 (persona) o 2 000 (avatar) caracteres, con un
+  tope de 64 KB por conversación; `ref` evita duplicados cuando un lote se reintenta.
+- Todo lo que llega del navegador se guarda con `fuente: navegador`. Al cerrar, el servidor pide la
+  transcripción oficial (`musa_conversacion_aplicar_oficial()`): sus mensajes quedan con
+  `fuente: liveavatar` y reemplazan las respuestas del avatar enviadas por el navegador; de estas
+  solo se conservan las preguntas escritas. El correo usa `musa_conversacion_para_correo()`.
+- Los límites de `sesion.php` se comprueban dentro de la transacción que crea el registro
+  (`musa_conversacion_crear()`), agrupando IPv6 por /64 (`musa_ip_grupo()`).
+- `musa_conversaciones_transaccion()` espera el bloqueo como máximo 8 s y responde 503.
 
 ---
 
@@ -226,4 +234,4 @@ el resumen por correo desde el panel.
 
 ---
 
-Gobernación de Nariño · QuéDice! · versión 2.2.0
+Gobernación de Nariño · QuéDice! · versión 2.3.0

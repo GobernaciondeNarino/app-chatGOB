@@ -8,6 +8,9 @@ require_once __DIR__ . '/comun.php';
 
 // Cierra las conversaciones que quedaron abiertas (pestañas cerradas sin aviso).
 musa_conversaciones_cerrar_vencidas($ajustesPanel);
+// Bitácoras con más de 12 meses (contienen IP de quien intentó entrar): se borran.
+musa_logs_purgar(12);
+$usoArchivo = musa_conversaciones_uso();
 
 $filtros = musa_filtros_desde($_GET);
 $porPagina = (int) musa_dato($ajustesPanel, 'sistema.registros_por_pagina', 25);
@@ -29,6 +32,21 @@ musa_panel_mensaje();
 
 <?php if (!musa_heygen_configurado($ajustesPanel)) : ?>
   <div class="alerta error">Falta la clave de API de HeyGen LiveAvatar: el avatar no puede atender a nadie. Configúrala en <a href="api.php">API HeyGen</a>.</div>
+<?php endif; ?>
+<?php if (file_exists(MUSA_DIR_CONFIG . '/claves.php')) : ?>
+  <div class="alerta error">El archivo <code>wj-content/config/claves.php</code> todavía existe y guarda la clave de API en texto plano. Ya no se usa (la clave vive en los ajustes): bórralo desde el Administrador de archivos de Plesk.</div>
+<?php endif; ?>
+<?php if ($usoArchivo >= 70) : ?>
+  <div class="alerta <?php echo $usoArchivo >= 100 ? 'error' : ''; ?>">
+    El archivo de conversaciones está al <?php echo (int) min($usoArchivo, 100); ?> % de su tamaño máximo<?php echo $usoArchivo >= 100 ? ' y el avatar ya no acepta conversaciones nuevas' : ''; ?>.
+    Exporta y archiva las conversaciones antiguas:
+    <form method="post" action="acciones.php" class="en-linea confirmar" data-confirmar="¿Mover a un archivo aparte las conversaciones cerradas con más de esos días? Seguirán en wj-content/datos, fuera del panel.">
+      <?php musa_campo_token(); ?>
+      <input type="hidden" name="accion" value="archivar">
+      <label class="en-linea">más de <input type="number" name="dias" value="90" min="1" max="3650" class="corto"> días</label>
+      <button type="submit" class="boton-linea pequeno">Archivar</button>
+    </form>
+  </div>
 <?php endif; ?>
 
 <section class="tarjetas-resumen">
@@ -110,7 +128,7 @@ musa_panel_mensaje();
         <?php if ($c['ciudad'] !== '') : ?><span class="tenue"><?php echo musa_e($c['ciudad']); ?></span><?php endif; ?>
       </td>
       <td>
-        <?php if ($c['correo'] !== '') : ?><a href="mailto:<?php echo musa_e($c['correo']); ?>"><?php echo musa_e($c['correo']); ?></a><?php else : ?><span class="tenue">—</span><?php endif; ?>
+        <?php if ($c['correo'] !== '') : ?><a href="mailto:<?php echo musa_e(rawurlencode($c['correo'])); ?>"><?php echo musa_e($c['correo']); ?></a><?php else : ?><span class="tenue">—</span><?php endif; ?>
         <?php if ($c['telefono'] !== '') : ?><span class="tenue"><?php echo musa_e($c['telefono']); ?></span><?php endif; ?>
       </td>
       <td class="centro"><strong><?php echo (int) musa_conversacion_preguntas($c); ?></strong></td>
@@ -188,14 +206,15 @@ musa_panel_mensaje();
                   <div class="chat-mensaje <?php echo $esPersona ? 'persona' : 'avatar'; ?>">
                     <span class="chat-quien"><?php echo musa_e($esPersona ? ($c['nombre'] !== '' ? $c['nombre'] : 'Visitante') : $nombreAvatar); ?>
                       · <?php echo musa_e(substr((string) ($m['hora'] ?? ''), 11, 8)); ?>
-                      <?php if (($m['origen'] ?? '') === 'texto') : ?>· escrito<?php endif; ?></span>
+                      <?php if (($m['origen'] ?? '') === 'texto') : ?>· escrito<?php endif; ?>
+                      <?php if (!musa_mensaje_verificado($m)) : ?><span class="etiqueta estado-error" title="Texto enviado por el navegador; no coincide con la transcripción oficial de LiveAvatar. No se incluye en los correos.">sin verificar</span><?php endif; ?></span>
                     <p><?php echo nl2br(musa_e($m['texto'] ?? '')); ?></p>
                   </div>
                 <?php endforeach; ?>
               </div>
             <?php endif; ?>
             <?php if ($c['session_id'] !== '') : ?>
-              <form method="post" action="acciones.php" class="en-linea confirmar" data-confirmar="¿Recuperar la transcripción oficial de LiveAvatar? Solo se agregan los mensajes que falten.">
+              <form method="post" action="acciones.php" class="en-linea confirmar" data-confirmar="¿Recuperar la transcripción oficial de LiveAvatar? Reemplaza las respuestas enviadas por el navegador por las verificadas.">
                 <?php musa_campo_token(); ?>
                 <input type="hidden" name="accion" value="transcripcion">
                 <input type="hidden" name="id" value="<?php echo musa_e($id); ?>">

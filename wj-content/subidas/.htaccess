@@ -1,0 +1,17 @@
+# QuéDice! · Imágenes subidas desde el panel: solo se sirven imágenes; nada se ejecuta.
+Options -Indexes
+
+<IfModule mod_authz_core.c>
+  Require all denied
+  <FilesMatch "(?i)^[a-z0-9-]+\.(png|jpe?g|gif|webp)$">
+    Require all granted
+  </FilesMatch>
+</IfModule>
+<IfModule !mod_authz_core.c>
+  Order allow,deny
+  Deny from all
+  <FilesMatch "(?i)^[a-z0-9-]+\.(png|jpe?g|gif|webp)$">
+    Order deny,allow
+    Allow from all
+  </FilesMatch>
+</IfModule>

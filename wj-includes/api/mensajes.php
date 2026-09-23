@@ -8,7 +8,7 @@ require_once __DIR__ . '/comun.php';
 $datos = musa_api_preparar();
 $c = musa_api_conversacion($datos);
 
-if (in_array($c['estado'], array('finalizada', 'error'), true)) {
+if (in_array($c['estado'], array('finalizada', 'error'), true) || musa_conversacion_vencida($c)) {
     musa_responder_json(array('ok' => false, 'mensaje' => 'La conversación ya terminó.'), 409);
 }
 

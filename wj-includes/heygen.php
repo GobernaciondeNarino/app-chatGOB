@@ -38,6 +38,18 @@ function musa_heygen_uuid_valido($id) {
     return (bool) preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/', musa_heygen_uuid($id));
 }
 
+/**
+ * Endpoint permitido. La clave de API viaja en cada petición, así que solo se admite
+ * https://api.liveavatar.com (o un subdominio de liveavatar.com) y, para el simulador de pruebas,
+ * http://localhost o http://127.0.0.1. Cualquier otro valor vuelve al endpoint oficial.
+ */
+function musa_heygen_endpoint_valido($endpoint) {
+    $endpoint = rtrim(trim((string) $endpoint), '/');
+    if (preg_match('#^https://([a-z0-9-]+\.)*liveavatar\.com(:443)?$#i', $endpoint)) { return strtolower($endpoint); }
+    if (preg_match('#^http://(localhost|127\.0\.0\.1)(:\d{2,5})?$#i', $endpoint)) { return strtolower($endpoint); }
+    return 'https://api.liveavatar.com';
+}
+
 /** ¿Hay clave de API configurada? */
 function musa_heygen_configurado($ajustes = null) {
     if ($ajustes === null) { $ajustes = musa_ajustes(); }
@@ -51,11 +63,7 @@ function musa_heygen_configurado($ajustes = null) {
  */
 function musa_heygen_peticion($ruta, $metodo = 'GET', $cuerpo = null, $ajustes = null, $bearer = null, $tiempo = 30) {
     if ($ajustes === null) { $ajustes = musa_ajustes(); }
-    $base = rtrim((string) musa_dato($ajustes, 'heygen.endpoint', 'https://api.liveavatar.com'), '/');
-    // Solo HTTPS; se admite http://localhost o 127.0.0.1 para pruebas locales con un simulador.
-    if ($base === '' || (stripos($base, 'https://') !== 0 && !preg_match('#^http://(localhost|127\.0\.0\.1)(:\d+)?$#i', $base))) {
-        $base = 'https://api.liveavatar.com';
-    }
+    $base = musa_heygen_endpoint_valido(musa_dato($ajustes, 'heygen.endpoint', ''));
 
     $cabeceras = array('Accept: application/json');
     if ($bearer !== null) {
@@ -181,6 +189,20 @@ function musa_heygen_sincronizar_contexto($ajustes = null, $forzar = false) {
         return array('ok' => true, 'context_id' => $id, 'mensaje' => 'El contexto ya estaba sincronizado.');
     }
 
+    // Un solo proceso sincroniza a la vez; los demás esperan y reutilizan el resultado.
+    $bloqueo = @fopen(MUSA_DIR_CONFIG . '/contexto.lock', 'c');
+    if ($bloqueo !== false) { @flock($bloqueo, LOCK_EX); }
+    $liberar = function () use ($bloqueo) { if ($bloqueo !== false) { @flock($bloqueo, LOCK_UN); @fclose($bloqueo); } };
+    $recien = musa_ajustes(true);
+    if (!$forzar && trim((string) musa_dato($recien, 'heygen.context_id', '')) !== ''
+        && musa_heygen_contexto_huella($recien) === (string) musa_dato($recien, 'heygen.context_huella', '')) {
+        $liberar();
+        return array('ok' => true, 'context_id' => (string) musa_dato($recien, 'heygen.context_id', ''), 'mensaje' => 'El contexto ya estaba sincronizado.');
+    }
+    $ajustes = $recien;
+    $huella = musa_heygen_contexto_huella($ajustes);
+    $id = trim((string) musa_dato($ajustes, 'heygen.context_id', ''));
+
     $cuerpo = musa_heygen_contexto_cuerpo($ajustes);
     $r = null;
     if ($id !== '') {
@@ -192,6 +214,7 @@ function musa_heygen_sincronizar_contexto($ajustes = null, $forzar = false) {
         if ($r['ok'] && is_array($r['datos']) && !empty($r['datos']['id'])) { $id = (string) $r['datos']['id']; }
     }
     if (!$r['ok'] || $id === '') {
+        $liberar();
         musa_log('Error al sincronizar el contexto de LiveAvatar', array('codigo' => $r['codigo'], 'respuesta' => $r['crudo']));
         return array('ok' => false, 'context_id' => '', 'mensaje' => $r['mensaje'] !== '' ? $r['mensaje'] : 'LiveAvatar no devolvió el identificador del contexto.');
     }
@@ -202,6 +225,7 @@ function musa_heygen_sincronizar_contexto($ajustes = null, $forzar = false) {
     musa_fijar($vigentes, 'heygen.context_huella', $huella);
     musa_fijar($vigentes, 'heygen.context_fecha', date('Y-m-d H:i:s'));
     musa_guardar_ajustes($vigentes);
+    $liberar();
     musa_log('Contexto de LiveAvatar sincronizado', array('context_id' => $id));
     return array('ok' => true, 'context_id' => $id, 'mensaje' => 'Contexto sincronizado en LiveAvatar (' . $id . ').');
 }
@@ -285,7 +309,7 @@ function musa_heygen_detener($sessionId, $motivo = 'USER_CLOSED', $ajustes = nul
     return musa_heygen_peticion('/v1/sessions/stop', 'POST', array(
         'session_id' => $sessionId,
         'reason'     => in_array($motivo, $validos, true) ? $motivo : 'UNKNOWN',
-    ), $ajustes);
+    ), $ajustes, null, 10);
 }
 
 /**
@@ -305,6 +329,7 @@ function musa_heygen_transcripcion($sessionId, $ajustes = null) {
             'rol'    => ($fila['role'] ?? '') === 'user' ? 'persona' : 'avatar',
             'texto'  => $texto,
             'origen' => 'voz',
+            'fuente' => 'liveavatar',
             'hora'   => $marca > 0 ? date('Y-m-d H:i:s', $marca) : '',
             'ref'    => 'la-' . $marca . '-' . substr(sha1($texto), 0, 8),
         );
@@ -399,18 +424,18 @@ function musa_heygen_prueba_sesion($ajustes = null) {
  * Cierra una conversación: detiene la sesión en LiveAvatar y, si el navegador
  * no registró ningún mensaje, recupera la transcripción oficial de la sesión.
  */
-function musa_conversacion_finalizar($id, $motivo = 'usuario', $ajustes = null, $razonApi = 'USER_CLOSED') {
+function musa_conversacion_finalizar($id, $motivo = 'usuario', $ajustes = null, $razonApi = 'USER_CLOSED', $recuperar = true) {
     if ($ajustes === null) { $ajustes = musa_ajustes(); }
     $c = musa_conversacion_obtener($id);
     if ($c === null) { return null; }
 
     if ($c['session_id'] !== '' && musa_heygen_configurado($ajustes)) {
         musa_heygen_detener($c['session_id'], $razonApi, $ajustes);
-        if (count($c['mensajes']) === 0) {
+        // La transcripción oficial de LiveAvatar es la fuente de verdad: lo que envió el navegador
+        // como respuesta del avatar se reemplaza por ella (el navegador podría haberlo alterado).
+        if ($recuperar) {
             $oficial = musa_heygen_transcripcion($c['session_id'], $ajustes);
-            if (is_array($oficial) && $oficial !== array()) {
-                musa_conversacion_agregar_mensajes($c['id'], $oficial, (int) musa_dato($ajustes, 'seguridad.maximo_mensajes', 400));
-            }
+            if (is_array($oficial) && $oficial !== array()) { musa_conversacion_aplicar_oficial($c['id'], $oficial); }
         }
     }
     $final = musa_conversacion_actualizar($c['id'], array('estado' => 'finalizada', 'motivo_fin' => $motivo, 'fecha_fin' => date('Y-m-d H:i:s')));
@@ -422,17 +447,26 @@ function musa_conversacion_finalizar($id, $motivo = 'usuario', $ajustes = null, 
  * Conversaciones que quedaron abiertas (la persona cerró la pestaña sin que llegara el aviso):
  * pasada la duración máxima más cinco minutos, se cierran. Se revisan pocas por llamada.
  */
-function musa_conversaciones_cerrar_vencidas($ajustes = null, $maximo = 5) {
+function musa_conversaciones_cerrar_vencidas($ajustes = null, $maximo = 5, $recuperar = true) {
     if ($ajustes === null) { $ajustes = musa_ajustes(); }
-    $limite = time() - (max(60, (int) musa_dato($ajustes, 'avatar.duracion_maxima', 600)) + 300);
     $cerradas = 0;
     foreach (musa_conversaciones_cargar()['conversaciones'] as $c) {
         if ($cerradas >= $maximo) { break; }
         if (!in_array($c['estado'] ?? '', array('activa', 'iniciando'), true)) { continue; }
-        $marca = strtotime((string) ($c['fecha'] ?? ''));
-        if ($marca === false || $marca > $limite) { continue; }
-        musa_conversacion_finalizar($c['id'], 'sin_cierre', $ajustes, 'USER_DISCONNECTED');
+        $c = array_merge(musa_conversacion_base(), $c);
+        $latido = strtotime((string) $c['actualizado']);
+        $sinLatido = $latido !== false && $latido < time() - MUSA_SIN_LATIDO;
+        if (!musa_conversacion_vencida($c, $ajustes) && !$sinLatido) { continue; }
+        musa_conversacion_finalizar($c['id'], 'sin_cierre', $ajustes, 'USER_DISCONNECTED', $recuperar);
         $cerradas++;
     }
     return $cerradas;
+}
+
+/** ¿La conversación superó su duración máxima (más cinco minutos de margen)? */
+function musa_conversacion_vencida($c, $ajustes = null) {
+    if ($ajustes === null) { $ajustes = musa_ajustes(); }
+    $inicio = strtotime((string) ($c['fecha'] ?? ''));
+    $duracion = max(60, (int) musa_dato($ajustes, 'avatar.duracion_maxima', 600));
+    return $inicio !== false && $inicio < time() - ($duracion + 300);
 }

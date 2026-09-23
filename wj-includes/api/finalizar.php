@@ -24,7 +24,7 @@ if ($mensajes !== array()) {
 }
 
 $motivos = array('usuario' => 'USER_CLOSED', 'salida' => 'USER_DISCONNECTED', 'tiempo' => 'MAX_DURATION_REACHED', 'inactividad' => 'IDLE_TIMEOUT', 'error' => 'UNKNOWN', 'servidor' => 'UNKNOWN');
-$motivo = isset($datos['motivo']) && isset($motivos[$datos['motivo']]) ? (string) $datos['motivo'] : 'usuario';
+$motivo = isset($datos['motivo']) && is_string($datos['motivo']) && isset($motivos[$datos['motivo']]) ? $datos['motivo'] : 'usuario';
 
 musa_conversacion_finalizar($c['id'], $motivo, $ajustes, $motivos[$motivo]);
 $final = musa_conversacion_obtener($c['id']);

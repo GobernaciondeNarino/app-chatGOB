@@ -23,8 +23,8 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
             musa_fijar($nuevos, 'heygen.context_id', '');
             musa_fijar($nuevos, 'heygen.context_huella', '');
         }
-        $endpoint = rtrim(musa_texto($_POST['heygen']['endpoint'] ?? '', 200), '/');
-        musa_fijar($nuevos, 'heygen.endpoint', (preg_match('#^https://[A-Za-z0-9.\-]+(:\d+)?$#', $endpoint) || preg_match('#^http://(localhost|127\.0\.0\.1)(:\d+)?$#', $endpoint)) ? $endpoint : 'https://api.liveavatar.com');
+        // Solo api.liveavatar.com (o un subdominio) o, para pruebas, localhost: la clave viaja en cada petición.
+        musa_fijar($nuevos, 'heygen.endpoint', musa_heygen_endpoint_valido(musa_texto($_POST['heygen']['endpoint'] ?? '', 200)));
         musa_guardar_ajustes($nuevos);
         musa_log('Configuración de la API de HeyGen guardada', array('usuario' => $usuarioActual));
         musa_panel_mensaje('Configuración de la API guardada. Pulsa «Verificar todo» para comprobarla.');
@@ -169,7 +169,7 @@ musa_panel_mensaje();
       <input type="password" name="heygen[api_key]" autocomplete="off" placeholder="<?php echo musa_e(musa_enmascarar_clave($clave)); ?>">
     </label>
     <?php musa_casilla('borrar_clave', false, 'Borrar la clave guardada'); ?>
-    <label>Endpoint<input type="text" name="heygen[endpoint]" value="<?php echo musa_e(musa_dato($ajustesPanel, 'heygen.endpoint', 'https://api.liveavatar.com')); ?>"></label>
+    <label>Endpoint (solo https://api.liveavatar.com o localhost para pruebas)<input type="text" name="heygen[endpoint]" value="<?php echo musa_e(musa_dato($ajustesPanel, 'heygen.endpoint', 'https://api.liveavatar.com')); ?>"></label>
   </div>
   <p class="nota">La clave se obtiene en <a href="https://app.liveavatar.com" target="_blank" rel="noopener">app.liveavatar.com</a> → Developers.
     Se guarda en <code>wj-content/config/ajustes.json.php</code> (fuera del repositorio) y nunca llega al navegador de los visitantes.</p>

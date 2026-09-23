@@ -14,7 +14,14 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
     $nueva   = (string) (isset($_POST['nueva']) ? $_POST['nueva'] : '');
     $repetir = (string) (isset($_POST['repetir']) ? $_POST['repetir'] : '');
 
-    if (!musa_credenciales_validas($usuarioActual, $actual)) {
+    // Comprobar la contraseña actual cuenta como intento de acceso (un tercero con la sesión abierta
+    // no puede usar este formulario para adivinarla). Si es correcta, el intento se libera enseguida.
+    $esperaCuenta = musa_reservar_intento(musa_ip());
+    $actualValida = $esperaCuenta === 0 && musa_credenciales_validas($usuarioActual, $actual);
+    if ($actualValida) { musa_registrar_intento(musa_ip(), false); }
+    if ($esperaCuenta > 0) {
+        $resultado = array(false, 'Demasiados intentos fallidos. Espera ' . ceil($esperaCuenta / 60) . ' minuto(s).');
+    } elseif (!$actualValida) {
         $resultado = array(false, 'La contraseña actual no es correcta.');
     } elseif (musa_clave_debil($nueva, $usuario) !== '') {
         $resultado = array(false, musa_clave_debil($nueva, $usuario));
@@ -22,8 +29,8 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
         $resultado = array(false, 'La confirmación no coincide.');
     } elseif ($usuario === '') {
         $resultado = array(false, 'Escribe un nombre de usuario válido.');
-    } elseif (!musa_htpasswd_guardar($usuario, $nueva)) {
-        $resultado = array(false, 'No fue posible escribir en wj-content/config/.htpasswd. Revisa los permisos de wj-content.');
+    } elseif (!musa_htpasswd_guardar($usuario, $nueva, $usuarioActual)) {
+        $resultado = array(false, 'No fue posible escribir en wj-content/config/.htpasswd.php. Revisa los permisos de wj-content.');
     } else {
         musa_log('Credenciales del panel actualizadas', array('usuario' => $usuario));
         // Nueva credencial: esta sesión sigue abierta; las demás sesiones abiertas se cierran solas.

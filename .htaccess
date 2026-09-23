@@ -1,16 +1,22 @@
 # QuéDice! · Gobernación de Nariño
 # Reglas para Apache (Plesk usa Apache detrás de nginx por defecto).
-# Si el servidor solo usa nginx, estas reglas no se aplican, pero los archivos de datos
-# siguen protegidos: empiezan con una línea PHP que responde 403.
+# Si el servidor solo usa nginx, estas reglas no se aplican: ver README → «Solo nginx».
 
 DirectoryIndex index.php
 Options -Indexes
 
-# HTTPS: actívalo en Plesk → Hosting y DNS → «Redirección 301 permanente de HTTP a HTTPS».
-# (Aquí no se fuerza para no romper el sitio si el certificado todavía no está instalado.)
+# HTTPS: actívalo en Plesk → Hosting y DNS → «Redirección 301 permanente de HTTP a HTTPS» y el HSTS en
+# «SSL It!». (Aquí no se fuerza para no dejar el sitio caído si el certificado aún no está instalado;
+# la aplicación envía Strict-Transport-Security cuando la visita llega por HTTPS.)
 
-# Documentación, archivos ocultos y de configuración: nunca por la web.
-<FilesMatch "(^\.|\.(md|log|lock|tmp|bak|sql|ini|json|dist|sh|yml|yaml)$|^(composer\.(json|lock)|package(-lock)?\.json)$)">
+# Nada que empiece por punto: .git/ (código e historial si el sitio es un clon), .htaccess, .htpasswd…
+# Se deja pasar /.well-known/ para que Let's Encrypt pueda renovar el certificado.
+<IfModule mod_alias.c>
+  RedirectMatch 404 "/\.(?!well-known/)"
+</IfModule>
+
+# Documentación, temporales y archivos de configuración: nunca por la web (sin distinguir mayúsculas).
+<FilesMatch "(?i)(^\.|\.(md|log|lock|tmp|bak|old|orig|sql|ini|json|dist|sh|yml|yaml|swp)$|~$|^(composer\.(json|lock)|package(-lock)?\.json)$)">
   <IfModule mod_authz_core.c>
     Require all denied
   </IfModule>

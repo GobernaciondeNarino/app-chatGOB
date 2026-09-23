@@ -107,6 +107,12 @@
     });
   }
 
+  /* Valor visible del control de opacidad de la imagen de fondo */
+  var opacidad = $('input[name="marca[opacidad_fondo]"]');
+  if (opacidad && $('#opacidad-valor')) {
+    opacidad.addEventListener('input', function () { $('#opacidad-valor').value = opacidad.value; });
+  }
+
   /* Paletas rápidas de color (Apariencia) */
   var PALETAS = {
     // Manual de identidad visual de la Gobernación de Nariño: verde #10A13B, amarillo #FFD500, azul #003366.

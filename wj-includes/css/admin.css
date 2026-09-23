@@ -359,3 +359,6 @@ label small { display: block; font-weight: 400; margin-top: 4px; }
 @media (max-width: 720px) {
   .enlace-fila { grid-template-columns: 1fr; }
 }
+
+input.corto { width: 6em; display: inline-block; margin: 0 4px; }
+.alerta form.en-linea { display: inline-flex; align-items: center; gap: 6px; margin-left: 6px; }

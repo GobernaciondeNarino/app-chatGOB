@@ -64,6 +64,7 @@ img { max-width: 100%; }
 
 .capa-fondo {
   position: absolute; inset: 0; z-index: -2;
+  background-image: var(--musa-imagen-fondo, none);
   background-size: cover; background-position: center;
   opacity: var(--musa-opacidad-fondo, .35);
 }

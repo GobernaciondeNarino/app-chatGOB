@@ -174,6 +174,8 @@ function musa_ajustes_predeterminados() {
         'seguridad' => array(
             'limite_por_hora'     => 6,
             'limite_por_dia'      => 30,
+            'limite_global_hora'  => 120,   // conversaciones por hora sumando a todas las personas
+            'maximo_activas'      => 15,    // conversaciones abiertas al mismo tiempo (cupo de LiveAvatar)
             'exigir_aceptacion'   => true,
             'maximo_mensajes'     => 400,
             // IPs de proxys propios (balanceador, CDN) cuyas cabeceras X-Real-IP

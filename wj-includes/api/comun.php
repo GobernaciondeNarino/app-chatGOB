@@ -38,13 +38,17 @@ function musa_api_mensajes($lista, $maximo = 30) {
     if (!is_array($lista)) { return $limpios; }
     foreach (array_slice($lista, 0, $maximo) as $m) {
         if (!is_array($m)) { continue; }
-        $rol = isset($m['rol']) ? (string) $m['rol'] : '';
+        $rol = isset($m['rol']) && is_string($m['rol']) ? $m['rol'] : '';
         if (!in_array($rol, array('persona', 'avatar'), true)) { continue; }
-        $texto = musa_texto(isset($m['texto']) ? $m['texto'] : '', 2000);
+        // Topes del servidor (el maxlength del navegador no protege nada): una pregunta cabe en
+        // 1 000 caracteres y una respuesta del avatar (máx. 250 palabras) en 2 000.
+        $texto = musa_texto(isset($m['texto']) ? $m['texto'] : '', $rol === 'persona' ? 1000 : 2000);
         if ($texto === '') { continue; }
         $origen = isset($m['origen']) && $m['origen'] === 'texto' ? 'texto' : 'voz';
-        $ref = preg_replace('/[^A-Za-z0-9_.:\-]/', '', (string) (isset($m['ref']) ? $m['ref'] : ''));
-        $limpios[] = array('rol' => $rol, 'texto' => $texto, 'origen' => $origen, 'ref' => substr($ref, 0, 80), 'hora' => date('Y-m-d H:i:s'));
+        $ref = preg_replace('/[^A-Za-z0-9_.:\-]/', '', (string) (isset($m['ref']) && is_scalar($m['ref']) ? $m['ref'] : ''));
+        // Todo lo que llega del navegador queda marcado: el texto del avatar solo se da por
+        // verificado cuando coincide con la transcripción oficial de LiveAvatar.
+        $limpios[] = array('rol' => $rol, 'texto' => $texto, 'origen' => $origen, 'fuente' => 'navegador', 'ref' => substr($ref, 0, 80), 'hora' => date('Y-m-d H:i:s'));
     }
     return $limpios;
 }

@@ -8,7 +8,8 @@
  */
 require_once __DIR__ . '/wj-includes/arranque.php';
 
-musa_cabeceras_seguridad(true);
+musa_cabeceras_seguridad('publica');
+$nonce = musa_nonce();
 musa_sesion();
 
 $ajustes = musa_ajustes();
@@ -46,7 +47,7 @@ $nombreAvatar     = (string) musa_dato($avatar, 'nombre', 'Anfitrión');
 $disponible       = musa_heygen_configurado($ajustes);
 $mostrarGovco     = !empty(musa_dato($marca, 'mostrar_govco', true));
 $entidad          = (string) musa_dato($marca, 'entidad', 'Gobernación de Nariño');
-$sitioEntidad     = (string) musa_dato($marca, 'sitio_entidad', '');
+$sitioEntidad     = musa_url_externa(musa_dato($marca, 'sitio_entidad', ''));
 $opacidadFondo    = max(0, min(100, (int) musa_dato($marca, 'opacidad_fondo', 35))) / 100;
 $formatos         = array('3/4' => '3 / 4', '1/1' => '1 / 1', '16/9' => '16 / 9', '9/16' => '9 / 16');
 $formato          = (string) musa_dato($avatar, 'formato', '3/4');
@@ -108,6 +109,8 @@ $css = array(
     '--musa-opacidad-fondo'    => (string) $opacidadFondo,
     '--musa-proporcion'        => $proporcion,
 );
+// url() sin comillas y cada segmento codificado: dentro de <style> no hay forma de cerrar la regla.
+if ($fondo !== '') { $css['--musa-imagen-fondo'] = 'url(' . implode('/', array_map('rawurlencode', explode('/', $fondo))) . ')'; }
 ?>
 <!DOCTYPE html>
 <html lang="es">
@@ -123,13 +126,13 @@ $css = array(
 <link href="https://fonts.googleapis.com/css2?family=Hind+Madurai:wght@500;600;700&family=Nunito+Sans:opsz,wght@6..12,400;6..12,600;6..12,700&display=swap" rel="stylesheet">
 <?php if ($retrato !== '') : ?><link rel="preload" as="image" href="<?php echo musa_e($retrato); ?>"><?php endif; ?>
 <link rel="stylesheet" href="<?php echo musa_e(musa_recurso('wj-includes/css/app.css')); ?>">
-<style>:root{<?php foreach ($css as $var => $valor) { echo $var . ':' . musa_e($valor) . ';'; } ?>}</style>
+<style nonce="<?php echo musa_e($nonce); ?>">:root{<?php foreach ($css as $var => $valor) { echo $var . ':' . musa_e($valor) . ';'; } ?>}</style>
 </head>
 <body class="estado-inicio">
 
 <div id="app" class="app<?php echo $mostrarGovco ? ' con-govco' : ''; ?>">
 
-  <?php if ($fondo !== '') : ?><div class="capa-fondo" style="background-image:url('<?php echo musa_e($fondo); ?>')" aria-hidden="true"></div><?php endif; ?>
+  <?php if ($fondo !== '') : ?><div class="capa-fondo" aria-hidden="true"></div><?php endif; ?>
   <canvas id="escena" aria-hidden="true"></canvas>
   <?php if ($rama !== '') : ?><img class="deco deco-rama" src="<?php echo musa_e($rama); ?>" alt="" aria-hidden="true"><?php endif; ?>
   <?php if ($barra !== '') : ?><img class="deco deco-barra" src="<?php echo musa_e($barra); ?>" alt="" aria-hidden="true"><?php endif; ?>
@@ -268,19 +271,19 @@ $css = array(
 
   <?php if ($formularioActivo) : ?>
   <dialog class="dialogo" id="dialogo-datos" aria-labelledby="titulo-datos">
-    <form id="formulario" novalidate>
+    <form id="formulario" novalidate autocomplete="off">
       <h2 id="titulo-datos"><?php echo musa_e($t('formulario_titulo', 'Antes de empezar, cuéntanos quién eres')); ?></h2>
       <p class="ayuda"><?php echo musa_e($t('formulario_ayuda', '')); ?></p>
 
       <div class="campo">
         <label for="nombre">Nombres y apellidos</label>
-        <input type="text" id="nombre" name="nombre" autocomplete="name" maxlength="120" required>
+        <input type="text" id="nombre" name="nombre" autocomplete="off" maxlength="120" required>
         <span class="error-campo" id="error-nombre"></span>
       </div>
       <?php if (!empty($form['pedir_correo'])) : ?>
       <div class="campo">
         <label for="correo">Correo electrónico <?php echo empty($form['correo_obligatorio']) ? '<small>(opcional)</small>' : ''; ?></label>
-        <input type="email" id="correo" name="correo" autocomplete="email" inputmode="email" maxlength="160" <?php echo !empty($form['correo_obligatorio']) ? 'required' : ''; ?>>
+        <input type="email" id="correo" name="correo" autocomplete="off" inputmode="email" maxlength="160" <?php echo !empty($form['correo_obligatorio']) ? 'required' : ''; ?>>
         <span class="error-campo" id="error-correo"></span>
       </div>
       <?php endif; ?>
@@ -296,7 +299,7 @@ $css = array(
             <?php if (!empty($form['ciudad_otro'])) : ?><option value="Otro municipio">Otro municipio (fuera de Nariño)</option><?php endif; ?>
           </select>
         <?php else : ?>
-          <input type="text" id="ciudad" name="ciudad" maxlength="80" autocomplete="address-level2" <?php echo !empty($form['ciudad_obligatoria']) ? 'required' : ''; ?>>
+          <input type="text" id="ciudad" name="ciudad" maxlength="80" autocomplete="off" <?php echo !empty($form['ciudad_obligatoria']) ? 'required' : ''; ?>>
         <?php endif; ?>
         <span class="error-campo" id="error-ciudad"></span>
       </div>
@@ -304,7 +307,7 @@ $css = array(
       <?php if (!empty($form['pedir_telefono'])) : ?>
       <div class="campo">
         <label for="telefono">Teléfono <?php echo empty($form['telefono_obligatorio']) ? '<small>(opcional)</small>' : ''; ?></label>
-        <input type="tel" id="telefono" name="telefono" autocomplete="tel" inputmode="tel" maxlength="40" <?php echo !empty($form['telefono_obligatorio']) ? 'required' : ''; ?>>
+        <input type="tel" id="telefono" name="telefono" autocomplete="off" inputmode="tel" maxlength="40" <?php echo !empty($form['telefono_obligatorio']) ? 'required' : ''; ?>>
         <span class="error-campo" id="error-telefono"></span>
       </div>
       <?php endif; ?>
@@ -333,7 +336,7 @@ $css = array(
   <div class="aviso-flotante" id="aviso-flotante" role="alert" hidden></div>
 </div>
 
-<script>window.MUSA_CONFIG = <?php echo json_encode($configJs, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>;</script>
+<script nonce="<?php echo musa_e($nonce); ?>">window.MUSA_CONFIG = <?php echo json_encode($configJs, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>;</script>
 <script src="<?php echo musa_e(musa_recurso('wj-includes/js/vendor/three.min.js')); ?>" defer></script>
 <script src="<?php echo musa_e(musa_recurso('wj-includes/js/vendor/livekit-client.umd.js')); ?>" defer></script>
 <script src="<?php echo musa_e(musa_recurso('wj-includes/js/app.js')); ?>" defer></script>

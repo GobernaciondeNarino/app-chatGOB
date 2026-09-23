@@ -793,6 +793,17 @@
       $('codigo-final').textContent = conversacion ? conversacion.codigo : '—';
       velo(conversacion ? 'velo-final' : 'velo-inicio');
       if (!conversacion) { estado = 'inicio'; claseEstado('inicio'); }
+      olvidarVisitante();
+      // En un kiosco compartido, la siguiente persona no debe ver la conversación anterior.
+      clearTimeout(esperaLimpieza);
+      esperaLimpieza = setTimeout(function () {
+        if (estado !== 'final') { return; }
+        Transcripcion.vaciar();
+        $('codigo-final').textContent = '—';
+        estado = 'inicio';
+        claseEstado('inicio');
+        velo('velo-inicio');
+      }, 90000);
     };
     if (!conversacion) { final(); return; }
     enviar(CONFIG.rutas.finalizar, { codigo: conversacion.codigo, clave: conversacion.clave, motivo: motivo || 'usuario', mensajes: pendientes })
@@ -819,6 +830,13 @@
 
   var dialogo = $('dialogo-datos');
   var formulario = $('formulario');
+  var esperaLimpieza = null;
+
+  /** Borra del formulario los datos de la persona anterior (kiosco compartido). */
+  function olvidarVisitante() {
+    if (formulario) { formulario.reset(); }
+    limpiarErrores();
+  }
 
   function limpiarErrores() {
     $$('.error-campo').forEach(function (e) { e.textContent = ''; });
@@ -908,6 +926,8 @@
   function empezar() {
     if (estado !== 'inicio' && estado !== 'final') { return; }
     estado = 'inicio';
+    clearTimeout(esperaLimpieza);
+    olvidarVisitante();
     if (CONFIG.formulario && dialogo && dialogo.showModal) {
       limpiarErrores();
       dialogo.showModal();

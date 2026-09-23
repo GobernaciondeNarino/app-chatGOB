@@ -80,9 +80,11 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
     musa_exigir_token(isset($_POST['token']) ? $_POST['token'] : '');
     $nuevos = $ajustesPanel;
 
-    foreach (array('nombre', 'eslogan', 'entidad', 'titulo_sitio', 'descripcion', 'sitio_entidad') as $campo) {
+    foreach (array('nombre', 'eslogan', 'entidad', 'titulo_sitio', 'descripcion') as $campo) {
         musa_fijar($nuevos, 'marca.' . $campo, musa_texto(isset($_POST['marca'][$campo]) ? $_POST['marca'][$campo] : '', 200));
     }
+    // Solo direcciones http(s): un «javascript:» aquí sería código en la página pública.
+    musa_fijar($nuevos, 'marca.sitio_entidad', musa_url_externa(musa_texto(isset($_POST['marca']['sitio_entidad']) ? $_POST['marca']['sitio_entidad'] : '', 200)));
     $imagenes = array(
         'marca.logo' => 'logo', 'marca.imagen_fondo' => 'imagen_fondo', 'marca.fondo' => 'fondo', 'marca.barra' => 'barra',
         'marca.logo_entidad' => 'logo_entidad', 'marca.favicon' => 'favicon', 'avatar.retrato' => 'retrato',
@@ -112,6 +114,8 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
     musa_fijar($nuevos, 'seguridad.limite_por_hora', max(0, min(200, (int) ($_POST['seguridad']['limite_por_hora'] ?? 6))));
     musa_fijar($nuevos, 'seguridad.limite_por_dia', max(0, min(2000, (int) ($_POST['seguridad']['limite_por_dia'] ?? 30))));
     musa_fijar($nuevos, 'seguridad.maximo_mensajes', max(20, min(2000, (int) ($_POST['seguridad']['maximo_mensajes'] ?? 400))));
+    musa_fijar($nuevos, 'seguridad.limite_global_hora', max(0, min(5000, (int) ($_POST['seguridad']['limite_global_hora'] ?? 120))));
+    musa_fijar($nuevos, 'seguridad.maximo_activas', max(0, min(500, (int) ($_POST['seguridad']['maximo_activas'] ?? 15))));
 
     musa_fijar($nuevos, 'sistema.efectos_3d', !empty($_POST['sistema']['efectos_3d']));
     musa_fijar($nuevos, 'sistema.registros_por_pagina', max(5, min(200, (int) ($_POST['sistema']['registros_por_pagina'] ?? 25))));
@@ -145,7 +149,7 @@ musa_panel_mensaje();
     <label>Eslogan<input type="text" name="marca[eslogan]" value="<?php echo musa_e(musa_dato($ajustesPanel, 'marca.eslogan', '')); ?>"></label>
     <label>Entidad<input type="text" name="marca[entidad]" value="<?php echo musa_e(musa_dato($ajustesPanel, 'marca.entidad', '')); ?>"></label>
     <label>Título del sitio (pestaña)<input type="text" name="marca[titulo_sitio]" value="<?php echo musa_e(musa_dato($ajustesPanel, 'marca.titulo_sitio', '')); ?>"></label>
-    <label>Sitio de la entidad<input type="text" name="marca[sitio_entidad]" value="<?php echo musa_e(musa_dato($ajustesPanel, 'marca.sitio_entidad', '')); ?>"></label>
+    <label>Sitio de la entidad<input type="url" name="marca[sitio_entidad]" placeholder="https://" value="<?php echo musa_e(musa_dato($ajustesPanel, 'marca.sitio_entidad', '')); ?>"></label>
     <label class="ancho-total">Descripción (SEO)<input type="text" name="marca[descripcion]" value="<?php echo musa_e(musa_dato($ajustesPanel, 'marca.descripcion', '')); ?>"></label>
     <?php musa_casilla('marca[mostrar_govco]', !empty(musa_dato($ajustesPanel, 'marca.mostrar_govco', true)), 'Mostrar la franja superior GOV.CO con el nombre o logo de la entidad'); ?>
   </div>
@@ -180,7 +184,7 @@ musa_panel_mensaje();
     <?php endforeach; ?>
   </div>
   <label class="opacidad">Visibilidad de la imagen de fondo: <strong><output id="opacidad-valor"><?php echo (int) musa_dato($ajustesPanel, 'marca.opacidad_fondo', 35); ?></output> %</strong>
-    <input type="range" name="marca[opacidad_fondo]" min="0" max="100" step="5" value="<?php echo (int) musa_dato($ajustesPanel, 'marca.opacidad_fondo', 35); ?>" oninput="document.getElementById('opacidad-valor').value=this.value"></label>
+    <input type="range" name="marca[opacidad_fondo]" min="0" max="100" step="5" value="<?php echo (int) musa_dato($ajustesPanel, 'marca.opacidad_fondo', 35); ?>"></label>
   <p class="nota">Las imágenes que subas se guardan en <code>wj-content/subidas</code>. Tamaño máximo: 5 MB.
     La imagen del avatar se recorta al centro según el formato elegido en <a href="avatar.php">Avatar y tema</a>.
     La imagen de fondo se mezcla con el color de fondo: baja su visibilidad si compite con el texto.</p>
@@ -250,6 +254,8 @@ musa_panel_mensaje();
     <label>Conversaciones por hora (por IP o correo)<input type="number" name="seguridad[limite_por_hora]" min="0" max="200" value="<?php echo (int) musa_dato($ajustesPanel, 'seguridad.limite_por_hora', 6); ?>"></label>
     <label>Conversaciones por día<input type="number" name="seguridad[limite_por_dia]" min="0" max="2000" value="<?php echo (int) musa_dato($ajustesPanel, 'seguridad.limite_por_dia', 30); ?>"></label>
     <label>Máximo de mensajes guardados por conversación<input type="number" name="seguridad[maximo_mensajes]" min="20" max="2000" value="<?php echo (int) musa_dato($ajustesPanel, 'seguridad.maximo_mensajes', 400); ?>"></label>
+    <label>Conversaciones por hora en total (todas las personas)<input type="number" name="seguridad[limite_global_hora]" min="0" max="5000" value="<?php echo (int) musa_dato($ajustesPanel, 'seguridad.limite_global_hora', 120); ?>"></label>
+    <label>Conversaciones al mismo tiempo (máximo)<input type="number" name="seguridad[maximo_activas]" min="0" max="500" value="<?php echo (int) musa_dato($ajustesPanel, 'seguridad.maximo_activas', 15); ?>"></label>
     <label>Registros por página<input type="number" name="sistema[registros_por_pagina]" min="5" max="200" value="<?php echo (int) musa_dato($ajustesPanel, 'sistema.registros_por_pagina', 25); ?>"></label>
     <label>Prefijo del código<input type="text" name="sistema[prefijo_codigo]" maxlength="10" value="<?php echo musa_e(musa_dato($ajustesPanel, 'sistema.prefijo_codigo', 'CAFE')); ?>"></label>
     <label>Zona horaria
