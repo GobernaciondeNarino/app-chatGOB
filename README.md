@@ -84,13 +84,14 @@ HeyGen no publica en esas páginas una fecha exacta de cierre de la API anterior
 
 6. **Entra al panel y crea la cuenta:** `https://tu-dominio/wj-admin/`
 
-   La primera vez aparece **Configuración inicial**: escribe el usuario y una contraseña de al
+   La primera vez aparece **Configuración inicial** y pide un **código de instalación**. El
+   sistema lo acaba de escribir en `wj-content/config/codigo-instalacion.php`: ábrelo en
+   *Plesk → Administrador de archivos* y cópialo (la web no entrega ese archivo). Así solo puede
+   crear la cuenta quien tiene acceso al servidor. Luego escribe el usuario y una contraseña de al
    menos 10 caracteres con letras y números. Se guarda cifrada con bcrypt en
-   `wj-content/config/.htpasswd` (fuera del repositorio). No hay contraseña de fábrica.
+   `wj-content/config/.htpasswd` (fuera del repositorio) y el código se borra. No hay contraseña
+   de fábrica.
 
-   > **Hazlo apenas despliegues:** mientras no exista la cuenta, la primera persona que abra
-   > `/wj-admin/` es quien la crea.
-   >
    > Si una instalación anterior usaba la contraseña de fábrica que publicaba la versión previa de
    > este README, cámbiala en *Acceso → Usuario y contraseña*: las credenciales de
    > `wj-admin/.htpasswd` se trasladan solas a `wj-content/config/.htpasswd`.
@@ -179,6 +180,9 @@ pregunta) o **JSON**.
   archivos ocultos), en `wj-admin` (autenticación de Apache opcional) y en `wj-content` (por la web
   solo se sirven imágenes; ningún script se ejecuta desde allí).
 - La clave de LiveAvatar vive solo en el servidor; al navegador llega un token temporal de sala.
+- Primera cuenta solo con el código de instalación de un solo uso (legible únicamente desde el
+  servidor), creada de forma atómica. Si `.htpasswd` existe pero está dañado, el panel queda
+  cerrado en lugar de ofrecer otra cuenta. Cambiar la contraseña cierra las demás sesiones.
 - Panel protegido con bcrypt (`wj-content/config/.htpasswd`), bloqueo tras 8 intentos fallidos, cierre por
   inactividad (2 horas) y token CSRF en todas las acciones.
 - La API pública exige token CSRF y, para cada conversación, una clave aleatoria propia.

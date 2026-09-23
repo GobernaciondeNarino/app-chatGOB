@@ -26,10 +26,9 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
         $resultado = array(false, 'No fue posible escribir en wj-content/config/.htpasswd. Revisa los permisos de wj-content.');
     } else {
         musa_log('Credenciales del panel actualizadas', array('usuario' => $usuario));
-        musa_sesion();
-        $_SESSION['musa_admin'] = $usuario;
-        $_SESSION['musa_admin_hora'] = time();
-        $resultado = array(true, 'Credenciales actualizadas. Si el servidor usa la autenticación de .htaccess, el navegador pedirá los datos nuevos al recargar.');
+        // Nueva credencial: esta sesión sigue abierta; las demás sesiones abiertas se cierran solas.
+        musa_sesion_admin_abrir($usuario);
+        $resultado = array(true, 'Credenciales actualizadas. Las demás sesiones abiertas del panel se cerraron. Si el servidor usa la autenticación de .htaccess, el navegador pedirá los datos nuevos al recargar.');
     }
 }
 

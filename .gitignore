@@ -4,6 +4,8 @@
 wj-content/config/ajustes.json.php
 wj-content/config/claves.php
 wj-content/config/.htpasswd
+wj-content/config/codigo-instalacion.php
+wj-content/config/credenciales.lock
 wj-content/config/*.tmp
 wj-content/datos/
 wj-content/subidas/
