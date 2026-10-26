@@ -14,7 +14,8 @@
  */
 if (!defined('MUSA_ARRANQUE')) { http_response_code(403); exit('Acceso directo no permitido.'); }
 
-define('MUSA_PDF_MAX_DESCOMPRIMIDO', 64 * 1024 * 1024);   // un manual de 54 páginas con diseño usa ~23 MB
+define('MUSA_PDF_MAX_DESCOMPRIMIDO', 96 * 1024 * 1024);   // trabajo total (un manual de 54 páginas con diseño usa ~23 MB)
+define('MUSA_PDF_MAX_FLUJO', 24 * 1024 * 1024);           // un solo flujo descomprimido (lo que ocupa la memoria a la vez)
 define('MUSA_PDF_MAX_OBJETOS', 300000);
 define('MUSA_PDF_MAX_PAGINAS', 3000);
 
@@ -100,14 +101,19 @@ function musa_pdf_objetos(&$ctx) {
         $dic = musa_pdf_valor_objeto($ctx, $num);
         $datos = musa_pdf_flujo($ctx, $num);
         $primero = (int) musa_pdf_dic($dic, 'First', 0);
-        $cantidad = (int) musa_pdf_dic($dic, 'N', 0);
+        $cantidad = min(50000, (int) musa_pdf_dic($dic, 'N', 0));
         if ($datos === null || $primero <= 0 || $cantidad <= 0) { continue; }
-        if (!preg_match_all('/(\d+)\s+(\d+)/', substr($datos, 0, $primero), $pares, PREG_SET_ORDER)) { continue; }
-        $pares = array_slice($pares, 0, $cantidad);
+        // El encabezado («número desplazamiento» × N) se lee par a par y solo hasta /N pares: /First y /N
+        // vienen del archivo y no deben decidir cuánta memoria se reserva.
+        $pares = array();
+        $fin = min($primero, strlen($datos));
+        for ($pos = 0; count($pares) < $cantidad && $pos < $fin && preg_match('/\G\s*(\d+)\s+(\d+)/', $datos, $par, 0, $pos); $pos += strlen($par[0])) {
+            $pares[] = array((int) $par[1], (int) $par[2]);
+        }
         foreach ($pares as $j => $par) {
-            $sub = (int) $par[1];
-            $desde = $primero + (int) $par[2];
-            $hastaSub = isset($pares[$j + 1]) ? $primero + (int) $pares[$j + 1][2] : strlen($datos);
+            $sub = $par[0];
+            $desde = $primero + $par[1];
+            $hastaSub = isset($pares[$j + 1]) ? $primero + $pares[$j + 1][1] : strlen($datos);
             if (!isset($ctx['objs'][$sub]) && count($ctx['objs']) < MUSA_PDF_MAX_OBJETOS) {
                 $ctx['objs'][$sub] = array('cuerpo' => substr($datos, $desde, max(0, $hastaSub - $desde)), 'flujo' => null);
             }
@@ -141,8 +147,12 @@ function musa_pdf_dic($dic, $clave, $porDefecto = null) {
 /** Nombre (/Algo) de un valor, o ''. */
 function musa_pdf_nombre_de($v) { return is_array($v) && isset($v['n']) ? $v['n'] : ''; }
 
-/** Datos descomprimidos del flujo de un objeto, o null si no se pueden leer. */
-function musa_pdf_flujo(&$ctx, $num) {
+/**
+ * Datos descomprimidos del flujo de un objeto, o null si no se pueden leer. Los flujos de contenido de
+ * las páginas se usan una sola vez y no se guardan en caché ($guardar = false) salvo que sean pequeños:
+ * así la memoria depende del flujo más grande y no del documento entero.
+ */
+function musa_pdf_flujo(&$ctx, $num, $guardar = true) {
     if (array_key_exists($num, $ctx['flujos'])) { return $ctx['flujos'][$num]; }
     $ctx['flujos'][$num] = null;
     if (!isset($ctx['objs'][$num]) || $ctx['objs'][$num]['flujo'] === null) { return null; }
@@ -161,24 +171,30 @@ function musa_pdf_flujo(&$ctx, $num) {
         else { $datos = null; }   // imágenes (DCT, JBIG2…) u otros: no llevan texto
         if ($datos === null) { break; }
     }
-    $ctx['flujos'][$num] = $datos;
+    if ($guardar || ($datos !== null && strlen($datos) <= 1048576)) { $ctx['flujos'][$num] = $datos; }
+    else { unset($ctx['flujos'][$num]); }
     return $datos;
 }
 
-/** Descomprime zlib por partes y se detiene si se agota el presupuesto (protege de «bombas»). */
+/**
+ * Descomprime zlib por partes y se detiene si el flujo pasa de MUSA_PDF_MAX_FLUJO o se agota el
+ * presupuesto del documento (protege de «bombas»). La entrada se da de a 4 KB: deflate expande como
+ * máximo ~1 000 veces, así que cada paso produce a lo sumo unos 4 MB antes de volver a comprobar.
+ */
 function musa_pdf_inflar(&$ctx, $datos) {
+    $limite = min($ctx['presupuesto'], MUSA_PDF_MAX_FLUJO);
     foreach (array(ZLIB_ENCODING_DEFLATE, ZLIB_ENCODING_RAW) as $codificacion) {
         $z = @inflate_init($codificacion);
         if ($z === false) { return null; }
         $salida = '';
         $largo = strlen($datos);
-        for ($pos = 0; $pos < $largo; $pos += 65536) {
-            $parte = @inflate_add($z, substr($datos, $pos, 65536), ZLIB_SYNC_FLUSH);
+        for ($pos = 0; $pos < $largo; $pos += 4096) {
+            $parte = @inflate_add($z, substr($datos, $pos, 4096), ZLIB_SYNC_FLUSH);
             if ($parte === false) { break; }
             $salida .= $parte;
-            if (strlen($salida) > $ctx['presupuesto']) {
-                // Se agotó el presupuesto (o es una «bomba»): no se descomprime nada más de este archivo.
-                $ctx['presupuesto'] = 0;
+            if (strlen($salida) > $limite) {
+                // Flujo demasiado grande (o «bomba»): se descarta y cuenta contra el presupuesto.
+                $ctx['presupuesto'] = max(0, $ctx['presupuesto'] - strlen($salida));
                 $ctx['incompleto'] = true;
                 return null;
             }
@@ -381,7 +397,7 @@ function musa_pdf_contenido_pagina(&$ctx, $dic) {
     } elseif (is_array($contenido) && isset($contenido['a'])) { $lista = $contenido['a']; }
     $partes = array();
     foreach ($lista as $ref) {
-        if (is_array($ref) && isset($ref['r'])) { $flujo = musa_pdf_flujo($ctx, $ref['r']); if ($flujo !== null) { $partes[] = $flujo; } }
+        if (is_array($ref) && isset($ref['r'])) { $flujo = musa_pdf_flujo($ctx, $ref['r'], false); if ($flujo !== null) { $partes[] = $flujo; } }
     }
     return implode("\n", $partes);
 }
@@ -465,7 +481,7 @@ function musa_pdf_interpretar(&$ctx, $contenido, $recursos, $profundidad) {
                 if ($profundidad < 3 && is_array($ref) && isset($ref['r'])) {
                     $dic = musa_pdf_valor_objeto($ctx, $ref['r']);
                     if (musa_pdf_nombre_de(musa_pdf_dic($dic, 'Subtype')) === 'Form') {
-                        $flujo = musa_pdf_flujo($ctx, $ref['r']);
+                        $flujo = musa_pdf_flujo($ctx, $ref['r'], false);
                         $propios = musa_pdf_dic($dic, 'Resources');
                         if ($flujo !== null) {
                             $texto = musa_pdf_interpretar($ctx, $flujo, $propios !== null ? musa_pdf_res($ctx, $propios) : $recursos, $profundidad + 1);
@@ -582,49 +598,54 @@ function musa_pdf_fuente(&$ctx, $ref) {
     return $fuente;
 }
 
-/** Lee una tabla ToUnicode (bfchar y bfrange). */
+/**
+ * Lee una tabla ToUnicode (bfchar y bfrange). Se recorre entrada por entrada, con un tope común de
+ * 200 000 códigos y de 4 MB de tabla: una tabla enorme no puede agotar la memoria.
+ */
 function musa_pdf_cmap($cmap) {
-    $mapa = array(); $bytes = 0;
-    if (preg_match_all('/begincodespacerange(.*?)endcodespacerange/s', $cmap, $rangos)) {
-        foreach ($rangos[1] as $bloque) {
-            if (preg_match_all('/<([0-9A-Fa-f]+)>/', $bloque, $h)) { foreach ($h[1] as $hex) { $bytes = max($bytes, (int) ceil(strlen($hex) / 2)); } }
-        }
+    $cmap = substr((string) $cmap, 0, 4 * 1024 * 1024);
+    $mapa = array(); $bytes = 0; $total = 0; $tope = 200000;
+    if (preg_match('/begincodespacerange(.{0,4096}?)endcodespacerange/s', $cmap, $rango) && preg_match_all('/<([0-9A-Fa-f]+)>/', $rango[1], $h)) {
+        foreach ($h[1] as $hex) { $bytes = max($bytes, (int) ceil(strlen($hex) / 2)); }
     }
     $unicode = function ($hex) {
         $hex = preg_replace('/[^0-9A-Fa-f]/', '', $hex);
         if ($hex === '') { return ''; }
         if (strlen($hex) % 4) { $hex = str_pad($hex, (int) ceil(strlen($hex) / 4) * 4, '0', STR_PAD_LEFT); }
-        return (string) @mb_convert_encoding((string) hex2bin($hex), 'UTF-8', 'UTF-16BE');
+        return (string) @mb_convert_encoding((string) hex2bin(substr($hex, 0, 64)), 'UTF-8', 'UTF-16BE');
     };
-    if (preg_match_all('/beginbfchar(.*?)endbfchar/s', $cmap, $bloques)) {
-        foreach ($bloques[1] as $bloque) {
-            if (preg_match_all('/<([0-9A-Fa-f]+)>\s*<([0-9A-Fa-f]*)>/', $bloque, $pares, PREG_SET_ORDER)) {
-                foreach ($pares as $p) {
-                    $mapa[hexdec($p[1])] = $unicode($p[2]);
-                    if (!$bytes) { $bytes = (int) ceil(strlen($p[1]) / 2); }
-                }
-            }
+    $largo = strlen($cmap);
+    // bfchar: <código> <unicode>
+    for ($pos = 0; $total < $tope && ($ini = strpos($cmap, 'beginbfchar', $pos)) !== false; $pos = $fin + 9) {
+        $fin = strpos($cmap, 'endbfchar', $ini);
+        if ($fin === false) { $fin = $largo; }
+        for ($i = $ini + 11; $total < $tope && $i < $fin && preg_match('/\G\s*<([0-9A-Fa-f]{1,8})>\s*<([0-9A-Fa-f]{0,64})>/', $cmap, $p, 0, $i); $i += strlen($p[0])) {
+            $mapa[hexdec($p[1])] = $unicode($p[2]);
+            if (!$bytes) { $bytes = (int) ceil(strlen($p[1]) / 2); }
+            $total++;
         }
     }
-    $total = 0;
-    if (preg_match_all('/beginbfrange(.*?)endbfrange/s', $cmap, $bloques)) {
-        foreach ($bloques[1] as $bloque) {
-            if (!preg_match_all('/<([0-9A-Fa-f]+)>\s*<([0-9A-Fa-f]+)>\s*(<[0-9A-Fa-f]*>|\[[^\]]*\])/', $bloque, $rangos, PREG_SET_ORDER)) { continue; }
-            foreach ($rangos as $r) {
-                $desde = hexdec($r[1]); $hasta = hexdec($r[2]);
-                if ($hasta < $desde || $hasta - $desde > 65535 || ($total += $hasta - $desde + 1) > 200000) { continue; }
-                if (!$bytes) { $bytes = (int) ceil(strlen($r[1]) / 2); }
-                if ($r[3][0] === '[') {
-                    preg_match_all('/<([0-9A-Fa-f]*)>/', $r[3], $destinos);
-                    foreach ($destinos[1] as $k => $hex) { if ($desde + $k <= $hasta) { $mapa[$desde + $k] = $unicode($hex); } }
-                } else {
-                    $base = preg_replace('/[^0-9A-Fa-f]/', '', $r[3]);
-                    if (strlen($base) % 4) { $base = str_pad($base, (int) ceil(strlen($base) / 4) * 4, '0', STR_PAD_LEFT); }
-                    $prefijo = substr($base, 0, -4);
-                    $ultimo = hexdec(substr($base, -4));
-                    for ($c = $desde; $c <= $hasta; $c++) {
-                        $mapa[$c] = $unicode($prefijo . str_pad(dechex(($ultimo + $c - $desde) & 0xFFFF), 4, '0', STR_PAD_LEFT));
-                    }
+    // bfrange: <desde> <hasta> <unicode inicial> o <desde> <hasta> [<u1> <u2> …]
+    for ($pos = 0; $total < $tope && ($ini = strpos($cmap, 'beginbfrange', $pos)) !== false; $pos = $fin + 10) {
+        $fin = strpos($cmap, 'endbfrange', $ini);
+        if ($fin === false) { $fin = $largo; }
+        for ($i = $ini + 12; $total < $tope && $i < $fin && preg_match('/\G\s*<([0-9A-Fa-f]{1,8})>\s*<([0-9A-Fa-f]{1,8})>\s*(<[0-9A-Fa-f]{0,64}>|\[[^\]]{0,65535}\])/', $cmap, $r, 0, $i); $i += strlen($r[0])) {
+            $desde = hexdec($r[1]); $hasta = hexdec($r[2]);
+            if ($hasta < $desde || $hasta - $desde > 65535) { continue; }
+            $hasta = min($hasta, $desde + $tope - $total - 1);
+            $total += $hasta - $desde + 1;
+            if (!$bytes) { $bytes = (int) ceil(strlen($r[1]) / 2); }
+            if ($r[3][0] === '[') {
+                preg_match_all('/<([0-9A-Fa-f]{0,64})>/', $r[3], $destinos);
+                foreach ($destinos[1] as $k => $hex) { if ($desde + $k > $hasta) { break; } $mapa[$desde + $k] = $unicode($hex); }
+            } else {
+                $base = preg_replace('/[^0-9A-Fa-f]/', '', $r[3]);
+                if ($base === '') { continue; }
+                if (strlen($base) % 4) { $base = str_pad($base, (int) ceil(strlen($base) / 4) * 4, '0', STR_PAD_LEFT); }
+                $prefijo = substr($base, 0, -4);
+                $ultimo = hexdec(substr($base, -4));
+                for ($c = $desde; $c <= $hasta; $c++) {
+                    $mapa[$c] = $unicode($prefijo . str_pad(dechex(($ultimo + $c - $desde) & 0xFFFF), 4, '0', STR_PAD_LEFT));
                 }
             }
         }

@@ -371,8 +371,10 @@ detallado (TLP:AMBER) se entrega aparte y **no** se publica en este repositorio.
   reservada (también la de metadatos de la nube, 169.254.169.254). Cada redirección se valida de
   nuevo y la conexión se hace a la IP ya comprobada (evita el «DNS rebinding»).
 - Los PDF se aceptan por su cabecera `%PDF-` y se guardan con la línea de guarda en
-  `wj-content/datos/fuentes/`. El lector propio tiene topes de memoria (64 MB descomprimidos, para
-  frenar las «bombas zip»), objetos, páginas, profundidad y tiempo.
+  `wj-content/datos/fuentes/`. El lector propio tiene topes de memoria (24 MB por flujo y 96 MB de
+  trabajo por documento, para frenar las «bombas zip»; los encabezados y tablas que declara el
+  propio archivo se leen con tope), objetos, páginas, profundidad y tiempo: un PDF malicioso se corta
+  en menos de un segundo con menos de 64 MB de memoria.
 - El texto de las fuentes llega a la IA marcado como datos de consulta, sin direcciones web, y las
   preguntas sugeridas se responden sin historial; el panel deja revisar el texto leído.
 - En cada pregunta se hace como máximo una llamada a Gemini Embeddings (y solo si la búsqueda

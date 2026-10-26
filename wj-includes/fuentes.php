@@ -465,6 +465,7 @@ function musa_fuentes_guardar_texto($f, $texto, $metodo, $paginas, $ajustes, $av
         $aviso = trim($aviso . ' Se usan los primeros ' . number_format(MUSA_FUENTES_MAX_TEXTO, 0, ',', '.') . ' caracteres.');
     }
     if (mb_strlen($texto, 'UTF-8') < 80) { return musa_fuentes_fallo($f, 'La fuente casi no tiene texto.'); }
+    if (musa_fuentes_obtener($f['id']) === null) { return 'La fuente se eliminó mientras se leía.'; }
     $fragmentos = musa_fuentes_fragmentar($texto);
     $otros = 0;
     foreach (musa_fuentes_lista() as $g) { if ($g['id'] !== $f['id']) { $otros += (int) ($g['fragmentos'] ?? 0); } }
@@ -485,7 +486,11 @@ function musa_fuentes_guardar_texto($f, $texto, $metodo, $paginas, $ajustes, $av
     );
     $titulo = musa_texto($titulo, 140);
     if ($titulo !== '' && trim((string) $f['nombre']) === '') { $cambios['nombre'] = $titulo; }
-    musa_fuentes_cambiar($f['id'], $cambios);
+    if (musa_fuentes_cambiar($f['id'], $cambios) === null) {
+        // Se eliminó mientras se guardaba: no quedan archivos huérfanos.
+        @unlink(musa_fuentes_archivo($f['id'], 'datos'));
+        return 'La fuente se eliminó mientras se leía.';
+    }
     if (!$semantica) { musa_fuentes_corpus_reconstruir(); }
     return musa_fuentes_titulo(array_merge($f, $cambios)) . ': ' . count($lista) . ' fragmentos' . ($semantica ? '; calculando la búsqueda semántica…' : '.');
 }
@@ -515,6 +520,7 @@ function musa_fuentes_vectorizar_paso($f, $ajustes) {
         }
         foreach ($lote as $k => $i) { $datos['fragmentos'][$i]['v'] = $r['vectores'][$k]; }
         $listos += count($lote);
+        if (musa_fuentes_obtener($f['id']) === null) { return 'La fuente se eliminó mientras se indexaba.'; }
         musa_escribir_json(musa_fuentes_archivo($f['id'], 'datos'), $datos);
     }
     $total = count($datos['fragmentos']);
@@ -917,8 +923,26 @@ function musa_fuentes_terminos($consulta) {
     return array_slice(array_keys($terminos), 0, 16);
 }
 
-/** Reúne en un solo archivo los fragmentos de las fuentes activas y listas. */
+/**
+ * Reúne en un solo archivo los fragmentos de las fuentes activas y listas. Con bloqueo propio: dos
+ * reconstrucciones a la vez (panel y procesamiento) no se pisan; la última siempre lee el índice vigente.
+ */
 function musa_fuentes_corpus_reconstruir() {
+    if (!is_dir(MUSA_DIR_FUENTES)) { @mkdir(MUSA_DIR_FUENTES, 0775, true); }
+    $puntero = @fopen(MUSA_DIR_FUENTES . '/corpus.lock', 'c');
+    if ($puntero !== false) {
+        $limite = microtime(true) + MUSA_ESPERA_BLOQUEO;
+        while (!@flock($puntero, LOCK_EX | LOCK_NB)) {
+            if (microtime(true) >= $limite) { @fclose($puntero); return false; }
+            usleep(50000);
+        }
+    }
+    $ok = musa_fuentes_corpus_escribir();
+    if ($puntero !== false) { @flock($puntero, LOCK_UN); @fclose($puntero); }
+    return $ok;
+}
+
+function musa_fuentes_corpus_escribir() {
     $ajustes = musa_ajustes();
     $modelo = musa_fuentes_modelo_vectores($ajustes);
     $fragmentos = array(); $conVectores = 0; $huella = array($modelo);
