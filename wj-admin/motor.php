@@ -76,6 +76,7 @@ function musa_motor_verificar_todo($ajustes) {
     $r['Videos del avatar'] = $faltan === array()
         ? array('ok' => true, 'mensaje' => 'Los dos videos (en reposo y hablando) están disponibles.', 'detalle' => '')
         : array('ok' => false, 'mensaje' => 'Falta el video ' . implode(' y el ', $faltan) . ': se mostrará el retrato con un movimiento suave.', 'detalle' => '');
+    $r['Fuentes de conocimiento'] = musa_fuentes_verificar($ajustes);
     return $r;
 }
 

@@ -100,7 +100,7 @@ a { color: var(--panel-primario); }
 
 label { display: block; font-size: 13px; font-weight: 600; color: var(--panel-tenue); }
 
-input[type="text"], input[type="email"], input[type="tel"], input[type="password"],
+input[type="text"], input[type="email"], input[type="tel"], input[type="password"], input[type="url"],
 input[type="number"], input[type="search"], input[type="date"], select, textarea {
   width: 100%;
   margin-top: 5px;
@@ -371,3 +371,17 @@ input.corto { width: 6em; display: inline-block; margin: 0 4px; }
 .bloque-panel h3 { margin-top: 18px; }
 .tabla audio { height: 34px; max-width: 220px; }
 .fila-actual { background: #FFF6F6; }
+
+/* ---------- Fuentes de conocimiento ---------- */
+.formulario-panel input[type="file"] { display: block; margin-top: 6px; font-size: 13px; }
+.progreso-fuentes { display: flex; align-items: center; gap: 10px; }
+.giro-panel { width: 18px; height: 18px; flex: none; border-radius: 50%; border: 3px solid var(--panel-borde); border-top-color: var(--panel-primario); animation: giro-panel 1s linear infinite; }
+@keyframes giro-panel { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .giro-panel { animation: none; } }
+.fila-inactiva td { opacity: .6; }
+.enlace-fuente { font-size: 12px; overflow-wrap: anywhere; }
+.texto-fuente { white-space: pre-wrap; max-height: 420px; overflow: auto; font-size: 13px; line-height: 1.5; }
+.texto-fuente.corto { max-height: 160px; margin-top: 4px; }
+.campo-pregunta { flex: 1; min-width: 260px; margin: 0; }
+.fragmentos-encontrados { padding-left: 20px; }
+.fragmentos-encontrados li { margin-bottom: 12px; }

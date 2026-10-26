@@ -1,4 +1,4 @@
-# QuéDice! · Documento técnico (versión 2.5.0)
+# QuéDice! · Documento técnico (versión 2.6.0)
 
 Complemento del `README.md` para quien vaya a mantener o ampliar el sistema.
 
@@ -74,6 +74,40 @@ Gemini TTS devuelve WAV o PCM L16 de 24 kHz; el PCM se envuelve en WAV (`musa_wa
 **Prueba local:** `php -d auto_prepend_file=prepend.php -S …` con un `prepend.php` que defina
 `MUSA_ELEVENLABS_API` y `MUSA_GEMINI_API` hacia un simulador local; la IA se apunta con el proveedor
 «Otra API» a `http://127.0.0.1:puerto/v1`. En producción esas constantes son fijas.
+
+### Fuentes de conocimiento (`wj-includes/fuentes.php`, `wj-includes/pdf.php`)
+
+```
+Panel (fuentes.php)                 Servidor                               Gemini
+ agregar página / subir PDF ──────► índice: estado «pendiente»
+ admin.js: POST accion=paso (bucle) musa_fuentes_paso(): ~20 s de trabajo por llamada
+   página: musa_fuentes_descargar → musa_html_texto
+   PDF:    pdftotext | musa_pdf_texto ─ ¿legible? ─ no ─► POST /v1beta/interactions (15 páginas por paso)
+   musa_fuentes_fragmentar (~1 100 caracteres, solape 160)
+   «vectorizando»: lotes de 50 ─────────────────────────► POST /v1beta/models/gemini-embedding-2:batchEmbedContents
+   musa_fuentes_corpus_reconstruir → datos/fuentes/corpus.json.php
+Pregunta (responder.php) → musa_ia_responder → musa_fuentes_contexto
+   musa_fuentes_buscar: BM25 sobre el corpus + coseno con el vector de la pregunta ─► batchEmbedContents (1 texto)
+   los k mejores fragmentos (fuentes.fragmentos) se agregan a la instrucción de sistema
+```
+
+- Estados de una fuente: `pendiente` → (`leyendo` si Gemini lee el PDF por tramos) →
+  (`vectorizando` si la búsqueda semántica está activa) → `lista`, o `error`. El avance de la
+  lectura por tramos queda en `{id}.trabajo.json.php`; un bloqueo (`procesar.lock`) impide dos
+  procesos a la vez y el índice se escribe con su propio bloqueo de espera acotada.
+- Vectores de 768 dimensiones, normalizados y guardados en float32 base64. `gemini-embedding-2`
+  recibe la tarea en el texto (`title: … | text: …` / `task: search result | query: …`);
+  `gemini-embedding-001` usa `taskType`. Si cambia el modelo, las fuentes se vectorizan de nuevo.
+- Puntaje: `0,8 × coseno + 0,2 × BM25 normalizado`; sin vectores, solo BM25. Se descartan los
+  fragmentos por debajo del 55 % del mejor. Las preguntas de seguimiento se buscan junto con la
+  pregunta anterior de la persona.
+- La huella del corpus forma parte de la clave de la caché de respuestas sugeridas.
+- `pdf.php`: objetos directos y en `/ObjStm`, filtros Flate/ASCIIHex/ASCII85, árbol de páginas con
+  recursos heredados, operadores de texto (`Tj`, `TJ`, `'`, `"`, `Td`, `TD`, `Tm`, `T*`, `Tc`, `Tw`,
+  `Tz`), formas `Do` hasta 3 niveles, anchos de glifo (`/Widths`, `/W`) para separar palabras y
+  tablas `ToUnicode` (bfchar/bfrange) o WinAnsi con `/Differences`. Sin OCR.
+- Las páginas de *Avatar y tema → Páginas de referencia* (`tema.enlaces`) se importan al crear el
+  índice; LiveAvatar recibe `musa_fuentes_enlaces_liveavatar()`.
 
 ### LiveAvatar
 
@@ -290,6 +324,7 @@ el resumen por correo desde el panel.
 | Otro tema de conversación | Solo desde el panel: **Avatar y tema** (tema, conocimiento, saludo y sugerencias). |
 | Usar un agente de voz guardado en LiveAvatar | Reemplazar `avatar_persona` por `voice_agent: { id }` en `musa_heygen_sesion_cuerpo()`. |
 | Reaccionar a un evento nuevo de LiveAvatar | `alEvento()` en `wj-includes/js/app.js`. |
+| Otro tipo de fuente (por ejemplo, .docx) | Un lector que devuelva texto y su caso en `musa_fuentes_avanzar()`; el resto (fragmentos, vectores, búsqueda) es común. |
 | Otro proveedor de IA con dirección fija | `musa_ia_presets()` en `wj-includes/motor.php` (si es compatible con OpenAI no hace falta más). |
 | Otro proveedor de voz | Una función como `musa_elevenlabs_tts()` que devuelva `ok, audio, tipo` y su caso en `musa_voz_sintetizar()`, `musa_voz_proveedor()` y `wj-admin/motor.php`. |
 | Cambiar los videos del avatar | **Motor y APIs → Videos del avatar** (MP4 o WebM; si existe el mismo nombre en el otro formato, se ofrecen ambos). |
@@ -297,4 +332,4 @@ el resumen por correo desde el panel.
 
 ---
 
-Gobernación de Nariño · QuéDice! · versión 2.5.0
+Gobernación de Nariño · QuéDice! · versión 2.6.0

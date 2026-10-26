@@ -8,7 +8,7 @@
 
 if (defined('MUSA_ARRANQUE')) { return; }
 define('MUSA_ARRANQUE', true);
-define('MUSA_VERSION', '2.5.0');
+define('MUSA_VERSION', '2.6.0');
 
 define('MUSA_RAIZ', str_replace('\\', '/', dirname(__DIR__)));
 define('MUSA_INCLUDES', MUSA_RAIZ . '/wj-includes');
@@ -30,6 +30,8 @@ require_once MUSA_INCLUDES . '/seguridad.php';
 require_once MUSA_INCLUDES . '/correo.php';
 require_once MUSA_INCLUDES . '/heygen.php';
 require_once MUSA_INCLUDES . '/motor.php';
+require_once MUSA_INCLUDES . '/pdf.php';
+require_once MUSA_INCLUDES . '/fuentes.php';
 
 musa_preparar_carpetas();
 

@@ -107,6 +107,33 @@
     });
   }
 
+  /* Fuentes de conocimiento: mientras haya fuentes pendientes se procesan por pasos cortos. */
+  var progreso = $('#fuentes-progreso');
+  if (progreso && progreso.dataset.pendientes === '1') {
+    var textoProgreso = $('#fuentes-progreso-texto');
+    var fallos = 0;
+    var paso = function () {
+      fetch('fuentes.php', {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'X-Requested-With': 'XMLHttpRequest' },
+        body: 'accion=paso&token=' + encodeURIComponent(progreso.dataset.token)
+      }).then(function (r) { return r.json(); }).then(function (r) {
+        fallos = 0;
+        if (!r.ok) { textoProgreso.textContent = r.mensaje || 'No fue posible procesar las fuentes.'; return; }
+        if (r.mensaje) { textoProgreso.textContent = r.mensaje; }
+        if (r.pendientes > 0) { setTimeout(paso, r.ocupado ? 4000 : 400); }
+        else { window.location.replace('fuentes.php'); }
+      }).catch(function () {
+        // Corte de red o tiempo agotado: el servidor sigue trabajando; se reintenta.
+        fallos++;
+        textoProgreso.textContent = 'Esperando al servidor… (intento ' + fallos + ')';
+        if (fallos < 20) { setTimeout(paso, 5000); }
+      });
+    };
+    paso();
+  }
+
   /* Valor visible del control de opacidad de la imagen de fondo */
   var opacidad = $('input[name="marca[opacidad_fondo]"]');
   if (opacidad && $('#opacidad-valor')) {
