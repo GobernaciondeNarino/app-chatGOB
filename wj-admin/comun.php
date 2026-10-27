@@ -15,6 +15,7 @@ function musa_panel_inicio($titulo, $activo = 'registros') {
     $menu = array(
         'registros' => array('Conversaciones', 'index.php'),
         'avatar'    => array('Avatar y tema', 'avatar.php'),
+        'fuentes'   => array('Fuentes', 'fuentes.php'),
         'motor'     => array('Motor y APIs', 'motor.php'),
         'api'       => array('HeyGen LiveAvatar', 'api.php'),
         'ajustes'   => array('Apariencia y formulario', 'ajustes.php'),

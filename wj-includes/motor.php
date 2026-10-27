@@ -183,7 +183,8 @@ function musa_api_error($servicio, $r, $json) {
     $detalle = musa_texto($detalle, 300);
     $cola = $detalle !== '' ? ': ' . $detalle : '.';
     if ($codigo === 0) { return 'No fue posible conectar con ' . $servicio . ($r['error'] !== '' ? ' (' . $r['error'] . ')' : '') . '.'; }
-    if ($codigo === 401 || $codigo === 403) { return $servicio . ' rechazó la clave o no le da permiso (HTTP ' . $codigo . ')' . $cola; }
+    // Google responde 400 (no 401) cuando la clave no es válida.
+    if ($codigo === 401 || $codigo === 403 || ($codigo === 400 && stripos($detalle, 'api key') !== false)) { return $servicio . ' rechazó la clave o no le da permiso (HTTP ' . $codigo . ')' . $cola; }
     if ($codigo === 402) { return $servicio . ': la cuenta no tiene saldo o créditos (HTTP 402)' . $cola; }
     if ($codigo === 404) { return $servicio . ': no se encontró el modelo, la voz o la dirección (HTTP 404)' . $cola; }
     if ($codigo === 422 || $codigo === 400) { return $servicio . ' no aceptó los datos (HTTP ' . $codigo . ')' . $cola; }
@@ -211,7 +212,10 @@ function musa_ia_responder($pregunta, $historial, $ajustes) {
         return array('ok' => false, 'texto' => '', 'mensaje' => 'La IA de texto no está configurada.', 'tokens' => 0);
     }
     $palabras = max(20, (int) musa_dato($ajustes, 'tema.maximo_palabras', 60));
-    $mensajes = array(array('role' => 'system', 'content' => musa_ia_instruccion($ajustes)));
+    // Fragmentos de las fuentes de conocimiento (páginas y PDF) que tienen que ver con la pregunta.
+    $usadas = array();
+    $fuentes = musa_fuentes_contexto($pregunta, $historial, $ajustes, $usadas);
+    $mensajes = array(array('role' => 'system', 'content' => musa_ia_instruccion($ajustes) . ($fuentes !== '' ? "\n\n" . $fuentes : '')));
     foreach ($historial as $m) {
         $texto = trim((string) ($m['texto'] ?? ''));
         if ($texto === '') { continue; }
@@ -249,7 +253,7 @@ function musa_ia_responder($pregunta, $historial, $ajustes) {
         musa_log('La IA devolvió una respuesta vacía', array('finish_reason' => $fin, 'respuesta' => $r['crudo']));
         return array('ok' => false, 'texto' => '', 'mensaje' => $fin === 'length' ? 'La IA agotó el límite de tokens antes de responder (baja el razonamiento).' : 'La IA devolvió una respuesta vacía.', 'tokens' => 0);
     }
-    return array('ok' => true, 'texto' => $texto, 'mensaje' => '', 'tokens' => (int) ($r['datos']['usage']['total_tokens'] ?? 0));
+    return array('ok' => true, 'texto' => $texto, 'mensaje' => '', 'tokens' => (int) ($r['datos']['usage']['total_tokens'] ?? 0), 'fuentes' => $usadas);
 }
 
 /**
@@ -319,7 +323,8 @@ function musa_ia_probar($ajustes, $pregunta = '') {
     $r = musa_ia_responder($pregunta, array(), $ajustes);
     $ms = (int) round((microtime(true) - $inicio) * 1000);
     if (!$r['ok']) { return array('ok' => false, 'mensaje' => $r['mensaje'], 'detalle' => 'Pregunta: ' . $pregunta); }
-    return array('ok' => true, 'mensaje' => 'Respondió en ' . number_format($ms / 1000, 1, ',', '.') . ' s' . ($r['tokens'] ? ' · ' . $r['tokens'] . ' tokens' : '') . '.', 'detalle' => '«' . $pregunta . '» → ' . $r['texto'], 'texto' => $r['texto']);
+    $consultadas = !empty($r['fuentes']) ? ' · Fuentes consultadas: ' . implode(', ', $r['fuentes']) : '';
+    return array('ok' => true, 'mensaje' => 'Respondió en ' . number_format($ms / 1000, 1, ',', '.') . ' s' . ($r['tokens'] ? ' · ' . $r['tokens'] . ' tokens' : '') . $consultadas . '.', 'detalle' => '«' . $pregunta . '» → ' . $r['texto'], 'texto' => $r['texto']);
 }
 
 /* ------------------------------------------------------------------ */
@@ -720,7 +725,8 @@ function musa_pregunta_sugerida($pregunta, $ajustes) {
 
 /** Respuesta guardada de una pregunta sugerida (depende del tema, del modelo y de la pregunta). */
 function musa_respuesta_cache_clave($pregunta, $ajustes) {
-    return 'r-' . sha1(musa_ia_instruccion($ajustes) . "\n" . musa_ia_modelo($ajustes) . "\n" . musa_texto_comparable($pregunta));
+    // Incluye la huella de las fuentes: si cambian los documentos, la respuesta guardada se genera de nuevo.
+    return 'r-' . sha1(musa_ia_instruccion($ajustes) . "\n" . musa_ia_modelo($ajustes) . "\n" . musa_fuentes_huella() . "\n" . musa_texto_comparable($pregunta));
 }
 
 function musa_voz_cache_archivo($clave) {

@@ -47,16 +47,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
         if ($texto !== '') { $sugerencias[] = $texto; }
     }
     musa_fijar($nuevos, 'tema.sugerencias', array_slice($sugerencias, 0, 8));
-
-    $enlaces = array();
-    foreach ((array) ($t['enlaces'] ?? array()) as $enlace) {
-        $url = musa_texto($enlace['url'] ?? '', 300);
-        $faq = musa_texto($enlace['faq'] ?? '', 1000);
-        if ($url !== '' && $faq !== '' && filter_var($url, FILTER_VALIDATE_URL) && preg_match('#^https?://#i', $url)) {
-            $enlaces[] = array('url' => $url, 'faq' => $faq);
-        }
-    }
-    musa_fijar($nuevos, 'tema.enlaces', array_slice($enlaces, 0, 20));
+    // Las páginas de referencia ahora se administran en «Fuentes» (sirven a los dos motores).
 
     musa_guardar_ajustes($nuevos);
     musa_log('Avatar y tema guardados', array('usuario' => $usuarioActual));
@@ -77,7 +68,6 @@ $ajustesPanel = musa_ajustes(true);
 $a = musa_dato($ajustesPanel, 'avatar', array());
 $t = musa_dato($ajustesPanel, 'tema', array());
 $sugerencias = musa_sugerencias($ajustesPanel);
-$enlaces = (array) musa_dato($t, 'enlaces', array());
 $contextId = (string) musa_dato($ajustesPanel, 'heygen.context_id', '');
 $sincronizado = $contextId !== '' && musa_heygen_contexto_huella($ajustesPanel) === (string) musa_dato($ajustesPanel, 'heygen.context_huella', '');
 
@@ -171,17 +161,11 @@ musa_panel_mensaje();
 </section>
 
 <section class="bloque-panel">
-  <h2>Páginas de referencia (opcional)</h2>
-  <p class="nota">LiveAvatar puede consultar páginas web para responder. Escribe la dirección y qué información encuentra el avatar en ella.</p>
-  <div id="lista-enlaces">
-    <?php foreach (array_merge($enlaces, array(array('url' => '', 'faq' => ''))) as $i => $enlace) : ?>
-      <div class="enlace-fila">
-        <label>Dirección<input type="url" name="tema[enlaces][<?php echo (int) $i; ?>][url]" value="<?php echo musa_e($enlace['url'] ?? ''); ?>" placeholder="https://"></label>
-        <label>¿Qué encuentra allí?<input type="text" name="tema[enlaces][<?php echo (int) $i; ?>][faq]" value="<?php echo musa_e($enlace['faq'] ?? ''); ?>" maxlength="1000"></label>
-      </div>
-    <?php endforeach; ?>
-  </div>
-  <button type="button" class="boton-linea pequeno" id="agregar-enlace" data-siguiente="<?php echo count($enlaces) + 1; ?>">Añadir página</button>
+  <h2>Páginas y documentos de consulta</h2>
+  <?php $resumenFuentes = musa_fuentes_resumen(); ?>
+  <p class="nota">Las páginas web y los PDF que el asistente consulta para responder se administran en
+    <a href="fuentes.php">Fuentes de conocimiento</a> (<?php echo (int) $resumenFuentes['activas']; ?> en uso).
+    El motor económico busca en ellas los fragmentos de cada pregunta; LiveAvatar recibe las páginas como enlaces.</p>
 </section>
 
 <div class="acciones-panel">

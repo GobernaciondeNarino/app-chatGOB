@@ -161,12 +161,8 @@ function musa_heygen_contexto_cuerpo($ajustes = null) {
         'prompt'       => musa_heygen_prompt($ajustes),
         'opening_text' => trim((string) musa_dato($ajustes, 'tema.saludo', '¡Hola!')),
     );
-    $enlaces = array();
-    foreach ((array) musa_dato($ajustes, 'tema.enlaces', array()) as $enlace) {
-        $url = trim((string) ($enlace['url'] ?? ''));
-        $faq = trim((string) ($enlace['faq'] ?? ''));
-        if ($url !== '' && $faq !== '' && filter_var($url, FILTER_VALIDATE_URL)) { $enlaces[] = array('url' => $url, 'faq' => $faq); }
-    }
+    // Las páginas activas de «Fuentes» llegan a LiveAvatar como enlaces (los PDF solo los usa el motor económico).
+    $enlaces = musa_fuentes_enlaces_liveavatar();
     if ($enlaces !== array()) { $cuerpo['links'] = $enlaces; }
     return $cuerpo;
 }

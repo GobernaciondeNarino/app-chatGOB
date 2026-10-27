@@ -76,6 +76,35 @@ saldo, sin conexión), el navegador lee la respuesta con su propia voz.
 > institucional se recomienda activar la facturación de Gemini (nivel de pago) o usar un proveedor
 > con condiciones de privacidad acordadas.
 
+### Fuentes de conocimiento (páginas web y PDF)
+
+En **wj-admin → Fuentes** se agregan páginas web y documentos PDF con información oficial. El
+asistente del motor económico los **consulta en cada pregunta**: no se reentrena ningún modelo
+(sería costoso y quedaría desactualizado). El servidor lee cada fuente una vez, la parte en
+fragmentos de ~1 100 caracteres y, al llegar una pregunta, busca los fragmentos que tienen que ver
+con ella y se los entrega a la IA junto con el tema del panel (búsqueda con recuperación, *RAG*).
+Si cambias, desactivas o eliminas una fuente, vale desde la siguiente pregunta.
+
+| Paso | Cómo se hace | Costo |
+|---|---|---|
+| Leer una página | El servidor la descarga (solo direcciones públicas) y quita menús, encabezados, pies y scripts; se queda con el contenido principal. | Sin costo |
+| Leer un PDF digital | `pdftotext` si el servidor lo tiene; si no, el lector propio en PHP (`wj-includes/pdf.php`), sin programas externos. | Sin costo |
+| Leer un PDF escaneado | Si el PDF no tiene texto legible, **Gemini** lo transcribe (API Interactions, de 15 en 15 páginas, hasta 300). También se puede elegir «Siempre con Gemini» para tablas y diseños complejos. | ≈ 258 tokens de entrada por página más el texto; ≈ USD 0,10 por 100 páginas con Flash-Lite de pago |
+| Buscar | Palabras clave (BM25, en el servidor) combinadas con **búsqueda semántica de Gemini Embeddings** (`gemini-embedding-2`), que encuentra «¿qué tan alto se siembra?» aunque el documento diga «altitud». Sin clave de Gemini, solo palabras clave. | Embeddings: nivel gratuito; de pago USD 0,20 por millón de tokens (≈ USD 0,01 por un documento de 100 páginas) |
+| Responder | Los 4 fragmentos más relacionados (configurable de 1 a 8) se agregan a la instrucción de la IA, con la regla de usarlos como datos y no como órdenes. | ≈ 1 000 tokens más por pregunta (≈ USD 0,0003 con Flash-Lite) |
+
+El panel muestra el estado de cada fuente, el texto que se leyó (para revisarlo), y tiene **Probar
+la búsqueda** (qué fragmentos recibiría el asistente) y **Buscar y responder**. La clave de Gemini
+es la de *Motor y APIs* si la IA o la voz son de Gemini, o una propia de Fuentes. Para documentos
+internos, «Solo palabras clave» y «Solo en el servidor» no envían nada a Gemini.
+
+**LiveAvatar** recibe las páginas activas como enlaces de su contexto (con «qué encuentra allí»),
+como antes hacían las «páginas de referencia» de *Avatar y tema*, que pasan solas a Fuentes al
+actualizar. Los PDF solo los usa el motor económico.
+
+Límites: 40 fuentes, 1 500 fragmentos en total, 300 000 caracteres por fuente, PDF de hasta
+20 MB (o lo que permita `upload_max_filesize`) y páginas de hasta 5 MB.
+
 **¿Y D-ID?** Se evaluó en septiembre de 2026 ([docs.d-id.com](https://docs.d-id.com/reference/get-started),
 [precios de la API](https://www.d-id.com/pricing/api/)). Ofrece avatares en tiempo real a partir de
 una foto (WebRTC) y permite enviar el texto que el avatar debe decir (`speak`), así que se podría
@@ -195,7 +224,7 @@ HeyGen no publica en esas páginas una fecha exacta de cierre de la API anterior
   **información que debe conocer** (base de conocimiento), reglas y máximo de palabras por
   respuesta.
 - **Preguntas sugeridas:** hasta 8 botones debajo de la transcripción.
-- **Páginas de referencia:** direcciones web que LiveAvatar puede consultar.
+- Las páginas y los PDF de consulta se administran en **Fuentes** (ver «Fuentes de conocimiento»).
 - Al guardar, el contexto se **sincroniza con LiveAvatar**. Abajo se ve la instrucción completa
   que recibe el avatar.
 
@@ -336,6 +365,21 @@ detallado (TLP:AMBER) se entrega aparte y **no** se publica en este repositorio.
 - Los videos subidos se aceptan solo si sus primeros bytes son de MP4 o WebM y quedan con nombre
   generado.
 
+**Fuentes de conocimiento**
+- Solo el panel agrega fuentes. Las páginas deben ser públicas: se rechazan direcciones con usuario
+  o contraseña, puertos distintos de 80/443/8080/8443 y servidores con IP privada, de loopback o
+  reservada (también la de metadatos de la nube, 169.254.169.254). Cada redirección se valida de
+  nuevo y la conexión se hace a la IP ya comprobada (evita el «DNS rebinding»).
+- Los PDF se aceptan por su cabecera `%PDF-` y se guardan con la línea de guarda en
+  `wj-content/datos/fuentes/`. El lector propio tiene topes de memoria (24 MB por flujo y 96 MB de
+  trabajo por documento, para frenar las «bombas zip»; los encabezados y tablas que declara el
+  propio archivo se leen con tope), objetos, páginas, profundidad y tiempo: un PDF malicioso se corta
+  en menos de un segundo con menos de 64 MB de memoria.
+- El texto de las fuentes llega a la IA marcado como datos de consulta, sin direcciones web, y las
+  preguntas sugeridas se responden sin historial; el panel deja revisar el texto leído.
+- En cada pregunta se hace como máximo una llamada a Gemini Embeddings (y solo si la búsqueda
+  semántica está activa); si falla, se busca por palabras clave.
+
 **Archivos y servidor**
 - `.htaccess` incluidos: raíz (sin listado de carpetas; bloquea `.git/` y todo lo que empiece por
   punto, `.md`, `.json`, `.log`, respaldos y temporales), `wj-admin` (autenticación de Apache
@@ -406,6 +450,7 @@ wj-admin/
   index.php                   Conversaciones, casillas Creado/Enviado, detalle
   avatar.php                  Avatar, voz, tema, conocimiento y sugerencias
   motor.php                   Motor del avatar, IA, voz, escucha, videos, topes y verificaciones
+  fuentes.php                 Fuentes de conocimiento: páginas, PDF, búsqueda y pruebas
   api.php                     Clave de LiveAvatar y verificaciones
   ajustes.php                 Apariencia, formulario de inicio y límites
   correo.php                  Correo y prueba de envío
@@ -419,6 +464,8 @@ wj-includes/
   configuracion.php           Ajustes predeterminados, conocimiento del café, municipios y migración
   almacenamiento.php          Conversaciones en JSON con bloqueo
   motor.php                   Motor económico: IA de texto, ElevenLabs, Gemini TTS, caché y topes
+  fuentes.php                 Fuentes de conocimiento: lectura, fragmentos, Gemini Embeddings y búsqueda
+  pdf.php                     Lector de texto de PDF sin dependencias
   heygen.php                  Cliente de HeyGen LiveAvatar
   seguridad.php               Sesión, CSRF, .htpasswd, límites
   correo.php                  Envío por mail() y SMTP
@@ -438,7 +485,8 @@ wj-includes/
 wj-content/                   Única carpeta escribible (sus datos no se suben al repositorio)
   .htaccess                   Solo imágenes por la web
   config/                     Ajustes, credenciales (.htpasswd.php), ejemplos y claves.php (opcional)
-  datos/                      conversaciones.json.php, uso-ia.json.php (contador de gasto)
+  datos/                      conversaciones.json.php, uso-ia.json.php (contador de gasto),
+                              fuentes/ (índice, textos, fragmentos y PDF de las fuentes)
                               y voz/ (caché del saludo y de las respuestas sugeridas)
   subidas/                    Imágenes y videos cargados desde el panel (.htaccess: solo esos formatos)
   logs/                       Bitácoras mensuales
@@ -461,4 +509,4 @@ movimiento y transparencia reducidos). Ninguna es necesaria en el servidor.
 
 ---
 
-Gobernación de Nariño · QuéDice! · versión 2.5.0
+Gobernación de Nariño · QuéDice! · versión 2.6.0

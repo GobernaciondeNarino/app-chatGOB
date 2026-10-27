@@ -122,6 +122,14 @@
         "idioma": "es-CO",
         "respaldo": true
     },
+    "fuentes": {
+        "busqueda": "auto",
+        "fragmentos": 4,
+        "lectura_pdf": "auto",
+        "gemini_api_key": "",
+        "modelo_lectura": "gemini-3.1-flash-lite",
+        "modelo_vectores": "gemini-embedding-2"
+    },
     "animacion": {
         "reposo": "wj-includes/images/avatar/avatar-reposo.mp4",
         "hablando": "wj-includes/images/avatar/avatar-hablando.mp4"

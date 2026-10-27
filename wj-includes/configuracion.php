@@ -177,6 +177,15 @@ function musa_ajustes_predeterminados() {
             'idioma'    => 'es-CO',
             'respaldo'  => true,                         // Scribe en navegadores sin reconocimiento de voz (Firefox)
         ),
+        // Fuentes de conocimiento (páginas y PDF) que consulta el motor económico. Ver wj-includes/fuentes.php.
+        'fuentes' => array(
+            'busqueda'        => 'auto',                 // auto: semántica con Gemini si hay clave + palabras clave | palabras: solo palabras clave
+            'fragmentos'      => 4,                      // fragmentos que recibe la IA en cada pregunta
+            'lectura_pdf'     => 'auto',                 // auto: local y Gemini si no hay texto legible | gemini | local
+            'gemini_api_key'  => '',                     // vacía = la clave de Gemini de la IA o de la voz
+            'modelo_lectura'  => 'gemini-3.1-flash-lite',
+            'modelo_vectores' => 'gemini-embedding-2',
+        ),
         // Videos en bucle del avatar (motor económico): en reposo y hablando.
         'animacion' => array(
             'reposo'   => 'wj-includes/images/avatar/avatar-reposo.mp4',
